@@ -1,0 +1,5060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="TeXStudio Local — High-performance local LaTeX workstation with real-time custom PDF rendering, multi-file management, and academic tools.">
+  <title>TeXStudio — Local LaTeX Workstation</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans for UI, JetBrains Mono for Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- PDF.js Local Library -->
+  <script src="/vendor/pdf.min.js"></script>
+
+  <!-- CodeMirror 6 Local Unified Bundle -->
+  <script src="/cm.bundle.js"></script>
+
+  <style>
+    /* ==========================================================================
+       DESIGN SYSTEM & CSS TOKENS (Obsidian Deep Dark & Emerald Precision)
+       ========================================================================== */
+    :root {
+      --bg-root:       #090a0f;
+      --bg-surface:    #0f1117;
+      --bg-card:       #151821;
+      --bg-elevated:   #1b1f2b;
+      --bg-hover:      #222736;
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --border-medium: rgba(255, 255, 255, 0.12);
+      --border-accent: rgba(16, 185, 129, 0.35);
+
+      --text-main:     #f1f5f9;
+      --text-muted:    #94a3b8;
+      --text-dim:      #64748b;
+      --text-inverse:  #090a0f;
+
+      --emerald:       #10b981;
+      --emerald-glow:  rgba(16, 185, 129, 0.25);
+      --emerald-dark:  #059669;
+      --indigo:        #6366f1;
+      --indigo-glow:   rgba(99, 102, 241, 0.25);
+      --rose:          #f43f5e;
+      --rose-dim:      rgba(244, 63, 94, 0.12);
+      --amber:         #f59e0b;
+      --amber-dim:     rgba(245, 158, 11, 0.12);
+
+      --font-ui:       'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono:     'JetBrains Mono', monospace;
+      --radius-sm:     6px;
+      --radius-md:     9px;
+      --radius-lg:     14px;
+      --shadow-sheet:  0 18px 45px -12px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
+      --transition:    0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-root);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ==========================================================================
+       TOP NAVIGATION BAR
+       ========================================================================== */
+    #navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 52px;
+      min-height: 52px;
+      padding: 0 14px;
+      background: rgba(15, 17, 23, 0.88);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border-subtle);
+      z-index: 100;
+      gap: 12px;
+    }
+
+    .nav-left, .nav-center, .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Brand Logo */
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-decoration: none;
+      color: var(--text-main);
+      user-select: none;
+      font-weight: 700;
+      font-size: 14.5px;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, #10b981 0%, #6366f1 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 10px var(--emerald-glow);
+    }
+    .brand-icon svg {
+      width: 15px;
+      height: 15px;
+      color: #ffffff;
+    }
+
+    .brand-tag {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--emerald);
+      background: rgba(16, 185, 129, 0.12);
+      padding: 1px 5px;
+      border-radius: 4px;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .nav-separator {
+      width: 1px;
+      height: 18px;
+      background: var(--border-subtle);
+      margin: 0 3px;
+    }
+
+    /* File label badge */
+    .file-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .file-dirty-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--emerald);
+      transition: background var(--transition);
+    }
+    .file-dirty-dot.dirty {
+      background: var(--amber);
+      box-shadow: 0 0 6px var(--amber);
+    }
+
+    /* Dropdown Menus */
+    .dropdown {
+      position: relative;
+    }
+
+    .dropdown-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+      user-select: none;
+    }
+    .dropdown-btn:hover {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      border-color: var(--border-medium);
+    }
+    .dropdown-btn svg {
+      width: 13px;
+      height: 13px;
+      opacity: 0.7;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      min-width: 210px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+      padding: 6px;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      z-index: 200;
+      backdrop-filter: blur(16px);
+    }
+    .dropdown.open .dropdown-menu {
+      display: flex;
+      animation: fadeInDown 0.16s ease;
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: all var(--transition);
+      width: 100%;
+    }
+    .dropdown-item:hover {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+    }
+    .dropdown-item.active {
+      color: var(--emerald);
+      background: rgba(16, 185, 129, 0.08);
+      font-weight: 600;
+    }
+    .dropdown-item svg {
+      width: 14px;
+      height: 14px;
+      opacity: 0.8;
+      color: var(--emerald);
+    }
+    .dropdown-item-badge {
+      margin-left: auto;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-dim);
+    }
+    .dropdown-item-badge.ok {
+      color: var(--emerald);
+      background: rgba(16, 185, 129, 0.12);
+    }
+
+    .dropdown-divider {
+      height: 1px;
+      background: var(--border-subtle);
+      margin: 5px 0;
+    }
+    .dropdown-section-title {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--text-dim);
+      padding: 6px 8px 3px 8px;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+    .dropdown-btn.ai-btn {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(16, 185, 129, 0.08));
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      color: #c7d2fe;
+    }
+    .dropdown-btn.ai-btn:hover {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(16, 185, 129, 0.16));
+      border-color: rgba(99, 102, 241, 0.6);
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+    }
+    .dropdown-btn.ai-btn svg {
+      color: var(--indigo);
+      opacity: 1;
+    }
+
+    /* Layout Toggle Group */
+    .segmented-control {
+      display: flex;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .segment-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-dim);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .segment-btn:hover {
+      color: var(--text-main);
+    }
+    .segment-btn.active {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    }
+    .segment-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* Primary Action Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 13px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      user-select: none;
+      white-space: nowrap;
+    }
+    .btn svg {
+      width: 13px;
+      height: 13px;
+      flex-shrink: 0;
+    }
+
+    .btn-compile {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #032014;
+      font-weight: 700;
+      box-shadow: 0 2px 14px var(--emerald-glow);
+    }
+    .btn-compile:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px var(--emerald-glow);
+    }
+    .btn-compile:active {
+      transform: translateY(0);
+    }
+    .btn-compile.compiling {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #261601;
+      animation: pulseGlow 1.2s infinite ease-in-out;
+    }
+
+    .btn-ghost {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
+    .btn-ghost:hover {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      border-color: var(--border-medium);
+    }
+    .btn-ghost:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      border-color: var(--border-subtle);
+    }
+
+    .kbd-hint {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: inherit;
+    }
+
+    /* Status Indicator */
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 9px;
+      border-radius: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 8px var(--emerald);
+    }
+    .status-dot.compiling {
+      background: var(--amber);
+      box-shadow: 0 0 8px var(--amber);
+      animation: blink 0.8s infinite alternate;
+    }
+    .status-dot.error {
+      background: var(--rose);
+      box-shadow: 0 0 8px var(--rose);
+    }
+
+    /* Icon Toggle Button */
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .icon-btn:hover {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      border-color: var(--border-medium);
+    }
+    .icon-btn.active {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--emerald);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+    .icon-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ==========================================================================
+       MAIN WORKSPACE & THREE-PANE LAYOUT
+       ========================================================================== */
+    #workspace {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* --------------------------------------------------------------------------
+       SIDEBAR: PROJECT FILE EXPLORER & FILE OUTLINE (Modern Workstation)
+       -------------------------------------------------------------------------- */
+    #sidebar {
+      width: 250px;
+      min-width: 200px;
+      max-width: 360px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      z-index: 25;
+      transition: margin-left 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    #sidebar.collapsed {
+      margin-left: -250px;
+      pointer-events: none;
+    }
+
+    .sidebar-section {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: flex 0.15s ease;
+    }
+    .sidebar-section.file-tree-section {
+      flex: 0 0 190px;
+      min-height: 38px;
+    }
+    .sidebar-section.file-tree-section.collapsed {
+      flex: 0 0 38px !important;
+    }
+    .sidebar-section.file-tree-section.collapsed .file-tree {
+      display: none;
+    }
+
+    .sidebar-section.file-outline-section {
+      flex: 1 1 0;
+      min-height: 38px;
+    }
+    .sidebar-section.file-outline-section.collapsed {
+      flex: 0 0 38px !important;
+    }
+    .sidebar-section.file-outline-section.collapsed .file-outline-container {
+      display: none;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 38px;
+      min-height: 38px;
+      padding: 0 10px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .sidebar-header:hover {
+      color: var(--text-main);
+    }
+    .sidebar-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sidebar-title .chevron-icon {
+      width: 14px;
+      height: 14px;
+      transition: transform 0.18s ease;
+      color: var(--text-dim);
+    }
+    .sidebar-section.collapsed .chevron-icon {
+      transform: rotate(-90deg);
+    }
+
+    .sidebar-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .sidebar-action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .sidebar-action-btn:hover {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+    }
+    .sidebar-action-btn svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .outline-count-badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: var(--bg-elevated);
+      color: var(--text-dim);
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    /* Horizontal Splitter */
+    .sidebar-splitter {
+      height: 7px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: row-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s ease;
+    }
+    .sidebar-splitter:hover {
+      background: var(--bg-card);
+    }
+    .sidebar-splitter .splitter-dots {
+      font-size: 7px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      opacity: 0.6;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .file-tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 8px;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all var(--transition);
+      position: relative;
+    }
+    .file-item:hover {
+      background: var(--bg-card);
+      color: var(--text-main);
+    }
+    .file-item.active {
+      background: #1b382b;
+      color: #34d399;
+      font-weight: 600;
+      box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3);
+    }
+    .file-item svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      opacity: 0.75;
+    }
+    .file-item.active svg {
+      color: #34d399;
+      opacity: 1;
+    }
+    .file-item-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-item-del {
+      display: none;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 2px;
+      border-radius: 3px;
+    }
+    .file-item:hover .file-item-del {
+      display: flex;
+    }
+    .file-item-del:hover {
+      color: var(--rose);
+      background: rgba(244, 63, 94, 0.15);
+    }
+    .file-item-del svg {
+      width: 11px;
+      height: 11px;
+    }
+
+    /* File Outline Section */
+    .file-outline-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .file-outline-empty {
+      padding: 20px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 11px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .outline-tree-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 25px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      color: var(--text-muted);
+      font-size: 11.5px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      position: relative;
+    }
+    .outline-tree-item:hover {
+      background: var(--bg-card);
+      color: var(--text-main);
+    }
+    .outline-tree-item.active {
+      background: #1b382b !important;
+      color: #34d399 !important;
+      font-weight: 600;
+      box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35);
+    }
+    .outline-item-title {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .outline-item-line {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      opacity: 0.5;
+      flex-shrink: 0;
+    }
+    .outline-tree-item:hover .outline-item-line {
+      opacity: 0.9;
+    }
+    .outline-tree-item.active .outline-item-line {
+      color: #6ee7b7;
+      opacity: 0.9;
+    }
+    .outline-toggle-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      border-radius: 3px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+    .outline-toggle-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .outline-toggle-btn svg {
+      width: 11px;
+      height: 11px;
+      transition: transform 0.15s ease;
+    }
+    .outline-toggle-btn.collapsed svg {
+      transform: rotate(-90deg);
+    }
+
+    /* Hierarchy & Vertical Guide Lines (Tree Navigation) */
+    .outline-tree-item[data-level="0"] {
+      font-weight: 700;
+      color: var(--text-main);
+      padding-left: 6px;
+    }
+    .outline-tree-item[data-level="1"] {
+      font-weight: 600;
+      color: var(--text-main);
+      padding-left: 10px;
+    }
+    .outline-tree-item[data-level="2"] {
+      font-weight: 500;
+      padding-left: 14px;
+    }
+    .outline-tree-item[data-level="3"] {
+      padding-left: 26px;
+      position: relative;
+    }
+    .outline-tree-item[data-level="3"]::before {
+      content: "";
+      position: absolute;
+      left: 19px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--border-subtle);
+    }
+    .outline-tree-item[data-level="4"] {
+      padding-left: 36px;
+      position: relative;
+    }
+    .outline-tree-item[data-level="4"]::before {
+      content: "";
+      position: absolute;
+      left: 29px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--border-subtle);
+    }
+    .outline-tree-item[data-level="5"] {
+      padding-left: 46px;
+    }
+
+    @keyframes cm-line-flash {
+      0% { background: rgba(16, 185, 129, 0.35); }
+      100% { background: transparent; }
+    }
+    .cm-flash-active-line {
+      animation: cm-line-flash 1.2s ease-out;
+    }
+
+    .dropzone-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(16, 185, 129, 0.15);
+      border: 2px dashed var(--emerald);
+      border-radius: var(--radius-md);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: var(--emerald);
+      font-weight: 600;
+      font-size: 13px;
+      z-index: 100;
+      pointer-events: none;
+    }
+    .dropzone-overlay.active {
+      display: flex;
+    }
+
+    /* --------------------------------------------------------------------------
+       EDITOR PANE
+       -------------------------------------------------------------------------- */
+    #editor-pane {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 240px;
+      background: var(--bg-surface);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .pane-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 38px;
+      min-height: 38px;
+      padding: 0 12px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      user-select: none;
+    }
+
+    .pane-tab {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .pane-tab svg {
+      width: 14px;
+      height: 14px;
+      color: var(--emerald);
+    }
+
+    .pane-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tool-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 4px 8px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .tool-btn:hover {
+      background: var(--bg-card);
+      border-color: var(--border-subtle);
+      color: var(--text-muted);
+    }
+    .tool-btn svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    #editor-container {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    #editor-container .cm-editor {
+      height: 100%;
+      background: transparent !important;
+    }
+    #editor-container .cm-scroller {
+      overflow: auto;
+      font-family: var(--font-mono) !important;
+      font-size: 13.5px !important;
+      line-height: 1.65 !important;
+      cursor: text;
+    }
+    #editor-container .cm-content {
+      padding: 14px 4px 80px 4px;
+      min-height: 100%;
+      cursor: text;
+    }
+    #editor-container .cm-gutters {
+      background: var(--bg-surface) !important;
+      border-right: 1px solid var(--border-subtle) !important;
+      color: var(--text-dim) !important;
+    }
+
+    /* Image Asset Preview in Editor Pane */
+    #image-preview-view {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      padding: 30px;
+      text-align: center;
+      gap: 16px;
+    }
+    #image-preview-view.active {
+      display: flex;
+    }
+    #image-preview-img {
+      max-width: 80%;
+      max-height: 60vh;
+      object-fit: contain;
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border-medium);
+    }
+    .image-preview-info {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Draggable Split Divider */
+    #divider {
+      width: 6px;
+      background: var(--bg-root);
+      border-left: 1px solid var(--border-subtle);
+      border-right: 1px solid var(--border-subtle);
+      cursor: col-resize;
+      position: relative;
+      z-index: 20;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    #divider:hover, #divider.dragging {
+      background: var(--emerald);
+      border-color: var(--emerald);
+    }
+    #divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 2px;
+      height: 32px;
+      border-radius: 1px;
+      background: var(--text-dim);
+      opacity: 0.5;
+    }
+
+    /* --------------------------------------------------------------------------
+       CUSTOM PDF VIEWER PANE
+       -------------------------------------------------------------------------- */
+    #preview-pane {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 280px;
+      background: #0b0c10;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Floating Glass Preview Header */
+    .preview-navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 42px;
+      min-height: 42px;
+      padding: 0 16px;
+      background: rgba(17, 19, 26, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      z-index: 10;
+      user-select: none;
+    }
+
+    .preview-nav-left, .preview-nav-center, .preview-nav-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preview-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .preview-title svg {
+      width: 14px;
+      height: 14px;
+      color: var(--emerald);
+    }
+
+    /* Page Navigation Control */
+    .page-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 2px 6px;
+    }
+
+    .page-nav-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      transition: all var(--transition);
+    }
+    .page-nav-btn:hover {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+    }
+    .page-nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .page-nav-btn svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .page-nav-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 0 2px;
+    }
+
+    .page-nav-input {
+      width: 32px;
+      height: 22px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-medium);
+      border-radius: 4px;
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      text-align: center;
+      padding: 0;
+      transition: all var(--transition);
+      -moz-appearance: textfield;
+    }
+    .page-nav-input::-webkit-outer-spin-button,
+    .page-nav-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .page-nav-input:focus {
+      outline: none;
+      border-color: var(--emerald);
+      box-shadow: 0 0 0 1px var(--emerald);
+      background: var(--bg-elevated);
+    }
+
+    .page-nav-total {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-dim);
+      user-select: none;
+      padding-right: 2px;
+    }
+
+    /* Zoom & Mode Controls */
+    .control-group {
+      display: flex;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .ctrl-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 24px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .ctrl-btn:hover {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+    }
+    .ctrl-btn.active {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--emerald);
+    }
+    .ctrl-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .zoom-text-pill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      min-width: 44px;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* PDF Canvas Stage (Viewport Area) */
+    #pdf-stage {
+      flex: 1;
+      overflow-y: scroll; /* Force vertical scrollbar to always be present and visible */
+      overflow-x: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.3) rgba(15, 17, 23, 0.85);
+      padding: 32px 24px 80px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: radial-gradient(circle at 50% 20%, #151822 0%, #0b0c10 85%);
+      position: relative;
+    }
+
+    /* Distinct, Tactile Scrollbar for PDF Stage */
+    #pdf-stage::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    #pdf-stage::-webkit-scrollbar-track {
+      background: rgba(15, 17, 23, 0.85);
+      border-left: 1px solid var(--border-subtle);
+    }
+    #pdf-stage::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.22);
+      border-radius: 5px;
+      border: 2px solid rgba(15, 17, 23, 0.85);
+      transition: background 0.15s ease;
+    }
+    #pdf-stage::-webkit-scrollbar-thumb:hover {
+      background: var(--emerald);
+      box-shadow: 0 0 10px var(--emerald-glow);
+    }
+
+    /* Continuous Multi-Page Paper Cards */
+    .pdf-pages-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      transition: transform 0.1s ease-out;
+    }
+
+    .pdf-page-card {
+      position: relative;
+      background: #ffffff;
+      border-radius: 3px;
+      box-shadow: var(--shadow-sheet);
+      transition: box-shadow 0.2s ease, filter 0.2s ease;
+      overflow: visible;
+    }
+    .pdf-page-card canvas {
+      display: block;
+      border-radius: 3px;
+      transition: filter 0.25s ease;
+    }
+
+    /* Dark Paper Mode Filter */
+    #pdf-stage.dark-paper .pdf-page-card canvas {
+      filter: invert(0.92) hue-rotate(180deg) brightness(0.92) contrast(1.08);
+      background: #1e1e2e;
+    }
+    #pdf-stage.dark-paper .pdf-page-card {
+      background: #1e1e2e;
+      box-shadow: 0 16px 45px -10px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.12);
+    }
+
+    .pdf-page-badge {
+      position: absolute;
+      bottom: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      background: rgba(15, 17, 23, 0.7);
+      padding: 2px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    /* Empty State Card */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      min-height: 380px;
+      max-width: 360px;
+      margin: auto;
+      text-align: center;
+      padding: 32px 24px;
+      border: 1px dashed var(--border-medium);
+      border-radius: var(--radius-lg);
+      background: rgba(22, 25, 34, 0.4);
+      backdrop-filter: blur(8px);
+    }
+    .empty-state-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+      color: var(--emerald);
+    }
+    .empty-state-icon svg {
+      width: 28px;
+      height: 28px;
+    }
+    .empty-state h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text-main);
+    }
+    .empty-state p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    /* Compiling Progress Overlay */
+    .compiling-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(11, 12, 16, 0.7);
+      backdrop-filter: blur(6px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      z-index: 30;
+      animation: fadeIn 0.15s ease;
+    }
+    .compiling-overlay.show {
+      display: flex;
+    }
+    .spinner-ring {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(16, 185, 129, 0.15);
+      border-top-color: var(--emerald);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .compiling-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      letter-spacing: -0.2px;
+    }
+
+    /* ==========================================================================
+       BOTTOM DIAGNOSTICS & PROBLEMS DRAWER
+       ========================================================================== */
+    #diagnostics-drawer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-height: 0;
+      height: 0;
+      background: var(--bg-surface);
+      border-top: none;
+      box-shadow: none;
+      z-index: 80;
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      pointer-events: none;
+    }
+    #diagnostics-drawer.open {
+      display: flex;
+      height: auto;
+      max-height: 38vh;
+      border-top: 1px solid var(--border-medium);
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
+      pointer-events: auto;
+    }
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 36px;
+      min-height: 36px;
+      padding: 0 16px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-subtle);
+      user-select: none;
+    }
+    .drawer-tabs {
+      display: flex;
+      gap: 4px;
+    }
+    .drawer-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      font-family: var(--font-ui);
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .drawer-tab.active {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+    }
+    .error-count-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 10px;
+      background: var(--rose-dim);
+      color: var(--rose);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+    .drawer-close {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+    }
+    .drawer-close:hover {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+    }
+    .drawer-content {
+      flex: 1;
+      overflow: auto;
+      padding: 12px 16px;
+    }
+    .problem-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .problem-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 14px;
+      background: rgba(244, 63, 94, 0.05);
+      border: 1px solid rgba(244, 63, 94, 0.2);
+      border-left: 3px solid var(--rose);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+    }
+    .problem-icon {
+      color: var(--rose);
+      margin-top: 1px;
+    }
+    .problem-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .problem-msg {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .problem-context {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .problem-jump-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      border-radius: 4px;
+      color: var(--rose);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      align-self: center;
+      white-space: nowrap;
+    }
+    .problem-jump-btn:hover {
+      background: var(--rose);
+      color: #fff;
+    }
+    #raw-log-text {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      line-height: 1.65;
+      color: var(--text-muted);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* ==========================================================================
+       SIDE DRAWER: SNAPSHOTS & VERSION HISTORY
+       ========================================================================== */
+    .side-drawer {
+      position: absolute;
+      top: 0;
+      right: -360px;
+      width: 360px;
+      height: 100%;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-medium);
+      box-shadow: -10px 0 35px rgba(0, 0, 0, 0.7);
+      z-index: 95;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .side-drawer.open {
+      right: 0;
+    }
+    .side-drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 44px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .side-drawer-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .snapshot-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      transition: all var(--transition);
+    }
+    .snapshot-card:hover {
+      border-color: var(--border-medium);
+      background: var(--bg-elevated);
+    }
+    .snapshot-time {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+    }
+    .snapshot-note {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .snapshot-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .snapshot-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .snapshot-btn {
+      padding: 3px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .snapshot-btn:hover {
+      background: var(--emerald);
+      color: #000;
+      font-weight: 600;
+      border-color: var(--emerald);
+    }
+
+    /* --------------------------------------------------------------------------
+       AI ASSISTANT DRAWER
+       -------------------------------------------------------------------------- */
+    .ai-prompt-box {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .ai-textarea {
+      width: 100%;
+      height: 80px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      padding: 8px;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      resize: vertical;
+    }
+    .ai-textarea:focus {
+      outline: none;
+      border-color: var(--indigo);
+    }
+    .ai-response-box {
+      flex: 1;
+      min-height: 120px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .quick-chip {
+      padding: 5px 9px;
+      border-radius: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .quick-chip:hover {
+      border-color: var(--indigo);
+      color: var(--text-main);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    /* ==========================================================================
+       MODALS (Table Builder, Palette, Word Count, New File)
+       ========================================================================== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.15s ease;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
+      width: 100%;
+      max-width: 680px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: fadeInDown 0.18s ease;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 48px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .modal-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-title svg {
+      color: var(--emerald);
+      width: 16px;
+      height: 16px;
+    }
+    .modal-body {
+      padding: 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      height: 52px;
+      padding: 0 18px;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--bg-card);
+    }
+
+    /* Modal Form Elements */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .form-input {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: 12.5px;
+      padding: 8px 12px;
+      transition: all var(--transition);
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--emerald);
+      box-shadow: 0 0 0 2px var(--emerald-glow);
+    }
+
+    /* Interactive Table Builder Grid */
+    .table-grid-wrap {
+      overflow-x: auto;
+      background: var(--bg-card);
+      padding: 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+    .table-builder-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .table-builder-table th, .table-builder-table td {
+      border: 1px solid var(--border-medium);
+      padding: 4px;
+    }
+    .table-builder-table input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 4px;
+    }
+    .table-builder-table input:focus {
+      outline: 1px solid var(--emerald);
+      background: rgba(16, 185, 129, 0.08);
+    }
+
+    /* Symbol & Circuit Palette Tiles */
+    .palette-search {
+      margin-bottom: 8px;
+    }
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+      gap: 8px;
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .palette-tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all var(--transition);
+      gap: 4px;
+    }
+    .palette-tile:hover {
+      background: var(--bg-elevated);
+      border-color: var(--emerald);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .palette-symbol {
+      font-size: 18px;
+      color: var(--text-main);
+      font-family: serif;
+    }
+    .palette-code {
+      font-size: 9.5px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 60px;
+    }
+
+    /* Academic Word Count Metric Cards */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .metric-val {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-main);
+      font-family: var(--font-mono);
+    }
+    .metric-val.green { color: var(--emerald); }
+    .metric-val.indigo { color: var(--indigo); }
+    .metric-val.amber { color: var(--amber); }
+    .metric-name {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* ==========================================================================
+       BOTTOM STATUS BAR
+       ========================================================================== */
+    #status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 26px;
+      min-height: 26px;
+      padding: 0 14px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border-subtle);
+      font-size: 11px;
+      color: var(--text-dim);
+      user-select: none;
+      z-index: 90;
+    }
+    .status-left, .status-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .status-item.clickable {
+      cursor: pointer;
+    }
+    .status-item.clickable:hover {
+      color: var(--text-main);
+    }
+
+    /* ==========================================================================
+       ANIMATIONS
+       ========================================================================== */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes blink {
+      from { opacity: 1; transform: scale(1); }
+      to   { opacity: 0.4; transform: scale(1.2); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.75; }
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app">
+    <!-- ====================================================================
+         TOP NAVIGATION BAR
+         ==================================================================== -->
+    <header id="navbar">
+      <div class="nav-left">
+        <!-- Sidebar Toggle -->
+        <button class="icon-btn" id="btn-toggle-sidebar" title="Toggle File Tree Sidebar (Ctrl+B)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="9" y1="3" x2="9" y2="21"/>
+          </svg>
+        </button>
+
+        <!-- Logo -->
+        <a href="#" class="brand">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 7V4h16v3"/>
+              <path d="M9 20h6"/>
+              <path d="M12 4v16"/>
+            </svg>
+          </div>
+          <span>TeXStudio</span>
+          <span class="brand-tag">Local</span>
+        </a>
+
+        <div class="nav-separator"></div>
+
+        <!-- Active File Badge -->
+        <div class="file-pill">
+          <span class="file-dirty-dot" id="dirty-dot" title="Document saved"></span>
+          <span id="active-filename">main.tex</span>
+        </div>
+      </div>
+
+      <div class="nav-center">
+        <!-- 1. Insert Dropdown (Palette, Table Builder, Image Import) -->
+        <div class="dropdown" id="insert-dropdown">
+          <button class="dropdown-btn" id="insert-btn" title="Insert components & elements">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Insert</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dropdown-menu">
+            <button class="dropdown-item" id="btn-palette">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+              <span>Math & CircuiTikZ Palette</span>
+            </button>
+            <button class="dropdown-item" id="btn-table-gen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+              <span>Visual Table Generator</span>
+            </button>
+            <button class="dropdown-item" id="btn-nav-upload">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>Upload Figure / Image...</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Project Dropdown (Engine, Templates, Word Count, Snapshots, Export) -->
+        <div class="dropdown" id="project-dropdown">
+          <button class="dropdown-btn" id="project-btn" title="Project settings & tools">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span id="project-menu-title">Project</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="dropdown-menu" style="min-width: 220px;">
+            <div class="dropdown-section-title">TeX Engine (<span id="current-engine-label">pdfLaTeX</span>)</div>
+            <button class="dropdown-item active" data-engine="pdflatex">
+              <span>pdfLaTeX</span>
+              <span class="dropdown-item-badge ok" id="badge-pdflatex">Active</span>
+            </button>
+            <button class="dropdown-item" data-engine="xelatex">
+              <span>XeLaTeX</span>
+              <span class="dropdown-item-badge" id="badge-xelatex">MiKTeX</span>
+            </button>
+            <button class="dropdown-item" data-engine="lualatex">
+              <span>LuaLaTeX</span>
+              <span class="dropdown-item-badge" id="badge-lualatex">MiKTeX</span>
+            </button>
+
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-section-title">Starter Templates</div>
+            <button class="dropdown-item" data-template="circuit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/></svg>
+              <span>CircuiTikZ Schematic</span>
+            </button>
+            <button class="dropdown-item" data-template="math">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+              <span>Math & Theorems</span>
+            </button>
+            <button class="dropdown-item" data-template="paper">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+              <span>Research Article</span>
+            </button>
+            <button class="dropdown-item" data-template="exam">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+              <span>Exam / Question Sheet</span>
+            </button>
+            <button class="dropdown-item" data-template="minimal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+              <span>Minimal Document</span>
+            </button>
+
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-section-title">Tools & History</div>
+            <button class="dropdown-item" id="btn-word-count">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              <span>Word Count & Stats</span>
+            </button>
+            <button class="dropdown-item" id="btn-history">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+              <span>Version Snapshots</span>
+            </button>
+            <button class="dropdown-item" id="btn-export-zip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Export Project as ZIP</span>
+            </button>
+            <button class="dropdown-item" id="btn-reset-project" style="color: var(--rose);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              <span>Reset Project to Default</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. AI Assistant Pill -->
+        <button class="dropdown-btn ai-btn" id="btn-ai-drawer" title="Academic AI Assistant">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
+          <span>AI Assist</span>
+        </button>
+      </div>
+
+      <div class="nav-right">
+        <!-- Layout Mode Toggle -->
+        <div class="segmented-control" id="layout-toggle">
+          <button class="segment-btn" data-layout="editor" title="Editor Only">Code</button>
+          <button class="segment-btn active" data-layout="split" title="Split Screen">Split</button>
+          <button class="segment-btn" data-layout="preview" title="Preview Only">Preview</button>
+        </div>
+
+        <div class="nav-separator"></div>
+
+        <!-- Status Indicator Pill -->
+        <div class="status-badge" id="status-badge">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="status-text">Ready</span>
+        </div>
+
+        <!-- Primary Compile Button -->
+        <button class="btn btn-compile" id="btn-compile" title="Compile LaTeX Document (Ctrl+Enter)">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          <span>Compile</span>
+          <span class="kbd-hint">Ctrl+↵</span>
+        </button>
+
+        <!-- Download PDF Button -->
+        <button class="btn btn-ghost" id="btn-download" disabled title="Download generated PDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>PDF</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ====================================================================
+         MAIN WORKSPACE: THREE-PANE (Sidebar + Editor + PDF Preview)
+         ==================================================================== -->
+    <main id="workspace">
+      <!-- 1. Left Sidebar (File Tree + File Outline) - Collapsed by default -->
+      <aside id="sidebar" class="collapsed">
+        <!-- 1A. File Tree Section -->
+        <div class="sidebar-section file-tree-section">
+          <div class="sidebar-header" id="header-file-tree" title="Click to toggle File Tree">
+            <div class="sidebar-title">
+              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              <span>File tree</span>
+            </div>
+            <div class="sidebar-actions">
+              <button class="sidebar-action-btn" id="btn-add-file" title="New LaTeX / BibTeX File">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <button class="sidebar-action-btn" id="btn-upload-file" title="Upload Image / Asset">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </button>
+              <button class="sidebar-action-btn" id="btn-close-sidebar" title="Collapse Sidebar (Ctrl+B)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+              <input type="file" id="file-upload-input" style="display: none;" accept="image/*,.tex,.bib,.sty,.pdf">
+            </div>
+          </div>
+          <div class="file-tree" id="file-tree-container">
+            <!-- Dynamic File Items Rendered Here -->
+          </div>
+        </div>
+
+        <!-- Horizontal Resizer Splitter between Tree and Outline -->
+        <div class="sidebar-splitter" id="sidebar-splitter" title="Drag to resize File Tree and File Outline">
+          <span class="splitter-dots">••••</span>
+        </div>
+
+        <!-- 1B. File Outline Section (Document Navigation) -->
+        <div class="sidebar-section file-outline-section">
+          <div class="sidebar-header" id="header-file-outline" title="Click to toggle File Outline">
+            <div class="sidebar-title">
+              <svg class="chevron-icon" id="outline-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              <span>File outline</span>
+            </div>
+            <div class="sidebar-actions">
+              <span class="outline-count-badge" id="outline-count">0</span>
+            </div>
+          </div>
+          <div class="file-outline-container" id="file-outline-container">
+            <!-- Dynamic Outline Headings Rendered Here -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- Drag & Drop Overlay -->
+      <div class="dropzone-overlay" id="dropzone-overlay">
+        <span>Drop Image or File to Import</span>
+      </div>
+
+      <!-- 2. CodeMirror 6 Editor Pane -->
+      <section id="editor-pane">
+        <div class="pane-toolbar">
+          <div class="pane-tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span id="editor-file-tab">main.tex</span>
+          </div>
+          <div class="pane-actions">
+            <button class="tool-btn" id="btn-editor-palette" title="Insert Math Symbols & CircuiTikZ Components">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+              <span>Palette</span>
+            </button>
+            <button class="tool-btn" id="btn-editor-table" title="Visual Table Generator">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+              <span>Table</span>
+            </button>
+            <div style="width: 1px; height: 16px; background: var(--border-subtle); margin: 0 4px;"></div>
+            <button class="tool-btn" id="btn-format" title="Clean multiple blank lines">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
+              <span>Format</span>
+            </button>
+            <button class="tool-btn" id="btn-clear" title="Clear editor">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              <span>Clear</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="editor-container"></div>
+
+        <!-- Binary Image Preview (Shown when image file selected) -->
+        <div id="image-preview-view">
+          <img id="image-preview-img" src="" alt="Asset preview">
+          <div class="image-preview-info" id="image-preview-info">image.png</div>
+          <button class="btn btn-ghost" id="btn-insert-image-tex">Insert \includegraphics into main.tex</button>
+        </div>
+      </section>
+
+      <!-- Draggable Split Divider -->
+      <div id="divider"></div>
+
+      <!-- 3. High-Fidelity PDF Preview Pane -->
+      <section id="preview-pane">
+        <div class="preview-navbar">
+          <div class="preview-nav-left">
+            <span class="preview-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+              PDF Output
+            </span>
+          </div>
+
+          <div class="preview-nav-center">
+            <!-- Multi-Page Pagination -->
+            <div class="page-nav">
+              <button class="page-nav-btn" id="prev-page" title="Previous page">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div class="page-nav-control">
+                <input type="number" id="page-nav-input" class="page-nav-input" value="1" min="1" max="1" title="Type page number & press Enter">
+                <span class="page-nav-total" id="page-nav-total">/ 1</span>
+              </div>
+              <button class="page-nav-btn" id="next-page" title="Next page">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+
+            <!-- Zoom Controls -->
+            <div class="control-group">
+              <button class="ctrl-btn" id="zoom-out" title="Zoom out (−)">−</button>
+              <span class="zoom-text-pill" id="zoom-value" title="Reset Zoom">100%</span>
+              <button class="ctrl-btn" id="zoom-in" title="Zoom in (+)">+</button>
+            </div>
+
+            <div class="control-group">
+              <button class="ctrl-btn" id="zoom-fit-width" title="Fit to width">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              </button>
+              <button class="ctrl-btn" id="zoom-fit-page" title="Fit entire page">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="preview-nav-right">
+            <button class="ctrl-btn" id="btn-dark-paper" title="Toggle Dark Paper Mode">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+            <button class="ctrl-btn" id="btn-print" title="Print Document">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Render Viewport -->
+        <div id="pdf-stage">
+          <div class="empty-state" id="empty-state">
+            <div class="empty-state-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/>
+                <line x1="9" y1="15" x2="15" y2="15"/>
+              </svg>
+            </div>
+            <h3>No Document Compiled Yet</h3>
+            <p>Compile your LaTeX document to view high-resolution custom canvas rendering.</p>
+            <button class="btn btn-compile" id="empty-compile-btn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Compile (Ctrl+Enter)</span>
+            </button>
+          </div>
+
+          <!-- Page Canvases Container -->
+          <div class="pdf-pages-container" id="pdf-pages-container" style="display: none;"></div>
+
+          <!-- Compilation In-Progress Overlay -->
+          <div class="compiling-overlay" id="compiling-overlay">
+            <div class="spinner-ring"></div>
+            <div class="compiling-text">Compiling LaTeX Document...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Bottom Diagnostics Drawer -->
+      <div id="diagnostics-drawer">
+        <div class="drawer-header">
+          <div class="drawer-tabs">
+            <button class="drawer-tab active" id="tab-problems">
+              <span>Problems</span>
+              <span class="error-count-pill" id="error-count-badge">0</span>
+            </button>
+            <button class="drawer-tab" id="tab-raw-log">
+              <span>Raw LaTeX Log</span>
+            </button>
+          </div>
+          <div class="drawer-actions">
+            <button class="drawer-close" id="drawer-close" title="Close diagnostics">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="drawer-content">
+          <div class="problem-list" id="problem-list"></div>
+          <pre id="raw-log-text" style="display: none;"></pre>
+        </div>
+      </div>
+
+      <!-- 5. Snapshots & Version History Side Drawer -->
+      <aside class="side-drawer" id="drawer-history">
+        <div class="side-drawer-header">
+          <span>Version Snapshots</span>
+          <button class="drawer-close" id="history-close-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="side-drawer-content">
+          <div style="display: flex; gap: 8px;">
+            <input type="text" class="form-input" id="snapshot-note-input" placeholder="Snapshot note..." style="flex: 1;">
+            <button class="btn btn-compile" id="btn-take-snapshot" style="padding: 6px 10px;">Save</button>
+          </div>
+          <div id="snapshot-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;"></div>
+        </div>
+      </aside>
+
+      <!-- 6. Academic AI Assistant Side Drawer -->
+      <aside class="side-drawer" id="drawer-ai">
+        <div class="side-drawer-header">
+          <span>Academic AI Assistant</span>
+          <button class="drawer-close" id="ai-close-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="side-drawer-content">
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <button class="quick-chip" id="ai-chip-fix-error">Fix LaTeX Error</button>
+            <button class="quick-chip" id="ai-chip-tone">Academic Tone</button>
+            <button class="quick-chip" id="ai-chip-bib">Generate BibTeX</button>
+            <button class="quick-chip" id="ai-chip-eq">Explain Math</button>
+          </div>
+
+          <div class="ai-prompt-box">
+            <span class="form-label">Ask AI / Prompt:</span>
+            <textarea class="ai-textarea" id="ai-prompt-input" placeholder="e.g. Help me fix the CircuiTikZ loop or refine this abstract..."></textarea>
+            <div style="display: flex; gap: 6px; justify-content: flex-end;">
+              <button class="btn btn-ghost" id="ai-copy-prompt-btn">Copy Prompt</button>
+              <button class="btn btn-compile" id="ai-execute-btn">Ask AI</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span class="form-label" style="margin-bottom: 0;">AI Engine Provider:</span>
+              <span id="ai-model-status" style="font-size: 10px; color: var(--emerald); font-weight: 600;">Gemini Cloud</span>
+            </div>
+            <select class="form-input" id="ai-provider-select" style="font-size: 11.5px; height: 32px; padding: 4px 8px; cursor: pointer; background: var(--bg-surface); color: var(--text-main);">
+              <option value="gemini">Google Gemini (Direct API Key)</option>
+              <option value="lmstudio">LM Studio (Localhost:1234 — 100% Free &amp; Offline)</option>
+              <option value="ollama">Ollama (Localhost:11434 — Free &amp; Offline)</option>
+              <option value="openai">OpenAI / Claude / OpenAI-Compatible API</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="group-gemini-key">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span class="form-label" style="margin-bottom: 0;">Google Gemini API Key:</span>
+              <span id="gemini-key-status" style="font-size: 10px; color: var(--text-dim); font-weight: 600;">Optional</span>
+            </div>
+            <input type="password" class="form-input" id="ai-gemini-key" placeholder="Enter Gemini API key (AQ.Ab... or AIza...)" value="" autocomplete="off">
+          </div>
+
+          <div class="form-group" id="group-endpoint" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span class="form-label" style="margin-bottom: 0;">API Endpoint URL:</span>
+              <span id="endpoint-hint" style="font-size: 10px; color: var(--text-dim);">LM Studio / Ollama</span>
+            </div>
+            <input type="text" class="form-input" id="ai-endpoint-input" placeholder="http://localhost:1234/v1">
+          </div>
+
+          <div class="form-group" id="group-custom-key" style="display: none;">
+            <span class="form-label">Bearer Token / API Key (Optional):</span>
+            <input type="password" class="form-input" id="ai-custom-key" placeholder="sk-... (for OpenAI / Claude / Remote Auth)" autocomplete="off">
+          </div>
+
+          <div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span class="form-label" style="margin-bottom: 0;">AI Response:</span>
+              <button class="btn btn-ghost" id="ai-insert-code-btn" style="padding: 2px 8px; font-size: 11px; display: none;">Insert at Cursor</button>
+            </div>
+            <div class="ai-response-box" id="ai-response-box" style="white-space: pre-wrap; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5;">AI recommendations and LaTeX solutions will appear here.</div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- ====================================================================
+         BOTTOM STATUS BAR
+         ==================================================================== -->
+    <footer id="status-bar">
+      <div class="status-left">
+        <div class="status-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          <span id="footer-engine">pdfLaTeX (MiKTeX)</span>
+        </div>
+        <div class="status-item clickable" id="footer-diagnostics-btn" title="Toggle compiler diagnostics">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="footer-status-msg">No issues</span>
+        </div>
+      </div>
+
+      <div class="status-right">
+        <div class="status-item">
+          <span id="cursor-pos">Ln 1, Col 1</span>
+        </div>
+        <div class="status-item">
+          <span id="doc-stats">0 words</span>
+        </div>
+        <div class="status-item">
+          <span id="page-count-status">0 pages</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ====================================================================
+       MODAL: VISUAL TABLE BUILDER
+       ==================================================================== -->
+  <div class="modal-backdrop" id="modal-table-gen">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          Visual LaTeX Table Generator
+        </div>
+        <button class="drawer-close" id="modal-table-close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 14px;">
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Rows:</label>
+            <input type="number" class="form-input" id="tbl-rows" value="3" min="1" max="10">
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Columns:</label>
+            <input type="number" class="form-input" id="tbl-cols" value="3" min="1" max="8">
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Style:</label>
+            <select class="form-input" id="tbl-style">
+              <option value="booktabs">Booktabs (Clean Academic)</option>
+              <option value="classic">Classic Grid (|c|c|)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Table Grid Content (Type headers and cells):</label>
+          <div class="table-grid-wrap">
+            <table class="table-builder-table" id="table-builder-grid"></table>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 14px;">
+          <div class="form-group" style="flex: 2;">
+            <label class="form-label">Caption:</label>
+            <input type="text" class="form-input" id="tbl-caption" value="Experimental Evaluation Results">
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Label:</label>
+            <input type="text" class="form-input" id="tbl-label" value="tab:eval_results">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="modal-table-cancel">Cancel</button>
+        <button class="btn btn-compile" id="modal-table-insert">Insert into Editor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL: MATH & CIRCUITYKZ SYMBOL PALETTE
+       ==================================================================== -->
+  <div class="modal-backdrop" id="modal-palette">
+    <div class="modal-card" style="max-width: 720px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+          Interactive Symbol & CircuiTikZ Palette
+        </div>
+        <button class="drawer-close" id="modal-palette-close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+          <button class="segment-btn active" id="pal-tab-math">Math Symbols</button>
+          <button class="segment-btn" id="pal-tab-greek">Greek Alphabet</button>
+          <button class="segment-btn" id="pal-tab-circuit">CircuiTikZ Components</button>
+          <button class="segment-btn" id="pal-tab-presets">Circuit Presets</button>
+        </div>
+
+        <input type="text" class="form-input palette-search" id="pal-search" placeholder="Search symbols or circuits (e.g. alpha, int, resistor, opamp)...">
+
+        <div class="palette-grid" id="palette-grid">
+          <!-- Dynamically populated tiles -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span style="font-size: 11px; color: var(--text-dim); margin-right: auto;">Tip: Click any symbol or component to insert it at your cursor.</span>
+        <button class="btn btn-ghost" id="modal-palette-done">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL: ACADEMIC WORD COUNT
+       ==================================================================== -->
+  <div class="modal-backdrop" id="modal-word-count">
+    <div class="modal-card" style="max-width: 540px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          Academic Document Statistics
+        </div>
+        <button class="drawer-close" id="modal-wc-close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="metric-grid">
+          <div class="metric-card">
+            <span class="metric-val green" id="wc-words">0</span>
+            <span class="metric-name">Words (Body Text)</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-val indigo" id="wc-math">0</span>
+            <span class="metric-name">Math Formulas</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-val amber" id="wc-pages">0</span>
+            <span class="metric-name">Rendered Pages</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-val" id="wc-chars">0</span>
+            <span class="metric-name">Characters</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-val" id="wc-figures">0</span>
+            <span class="metric-name">Figures</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-val" id="wc-tables">0</span>
+            <span class="metric-name">Tables</span>
+          </div>
+        </div>
+
+        <div style="font-size: 11.5px; color: var(--text-dim); background: var(--bg-card); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+          Estimated Reading Time: <strong id="wc-read-time" style="color: var(--text-main);">0 min</strong> (based on standard academic velocity of 180 wpm).
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-compile" id="modal-wc-ok">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL: CREATE NEW FILE
+       ==================================================================== -->
+  <div class="modal-backdrop" id="modal-new-file">
+    <div class="modal-card" style="max-width: 420px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Create New Project File
+        </div>
+        <button class="drawer-close" id="modal-nf-close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Filename (with extension):</label>
+          <input type="text" class="form-input" id="nf-input" placeholder="e.g. references.bib, chapter1.tex, style.sty">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="modal-nf-cancel">Cancel</button>
+        <button class="btn btn-compile" id="modal-nf-create">Create File</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       STARTER TEMPLATES
+       ==================================================================== -->
+  <script type="text/template" id="tpl-circuit">\documentclass[12pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb}
+\usepackage[margin=1in]{geometry}
+\usepackage{circuitikz}
+\usepackage{graphicx}
+
+\title{\textbf{Analog Circuit Analysis: Transient Response}}
+\author{Antigravity Engineering Lab}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{1. Second-Order RLC Filter Design}
+Consider the following bridge-fed RLC low-pass filter:
+
+\begin{center}
+\begin{circuitikz}[american, scale=1.1, transform shape]
+  \draw (0,0) to[V, v=$V_{in}(t)$] (0,3)
+              to[R, l=$R_1{=}1.2\,\mathrm{k}\Omega$] (3,3)
+              to[L, l=$L_1{=}47\,\mathrm{mH}$] (6,3)
+              to[C, l=$C_1{=}10\,\mu\mathrm{F}$] (6,0)
+              -- (0,0);
+  \draw (6,3) -- (8,3) to[open, v^=$V_{out}(t)$] (8,0) -- (6,0);
+\end{circuitikz}
+\end{center}
+
+\subsection*{Characteristic Equation}
+By applying Kirchhoff's Voltage Law around the single mesh:
+\[
+  L_1 \frac{d^2 i(t)}{dt^2} + R_1 \frac{di(t)}{dt} + \frac{1}{C_1} i(t) = 0
+\]
+
+The characteristic roots are defined by:
+\[
+  s_{1,2} = -\alpha \pm \sqrt{\alpha^2 - \omega_0^2}, \quad \text{where} \quad \alpha = \frac{R_1}{2L_1}, \; \omega_0 = \frac{1}{\sqrt{L_1 C_1}}
+\]
+
+\section*{2. Experimental Verification}
+\begin{itemize}
+  \item Resonant frequency $f_0 \approx 232.1\,\mathrm{Hz}$
+  \item Damping ratio $\zeta = \alpha / \omega_0 \approx 0.87$ (Slightly underdamped)
+\end{itemize}
+
+\end{document}</script>
+
+  <script type="text/template" id="tpl-math">\documentclass[12pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage[margin=1in]{geometry}
+
+\newtheorem{theorem}{Theorem}
+
+\title{\textbf{Advanced Linear Algebra \& Calculus Notes}}
+\author{Department of Mathematics}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Eigenvalue Decomposition}
+Let $A \in \mathbb{R}^{n \times n}$ be a symmetric real matrix. Then there exists an orthogonal matrix $Q$ such that:
+\[
+  A = Q \Lambda Q^T = \sum_{i=1}^n \lambda_i q_i q_i^T
+\]
+
+\begin{theorem}[Spectral Theorem]
+Every real symmetric matrix has real eigenvalues and mutually orthogonal eigenvectors.
+\end{theorem}
+
+\section{Multivariable Optimization}
+Consider the Lagrangian function with inequality constraints:
+\[
+  \mathcal{L}(x, \lambda, \nu) = f_0(x) + \sum_{i=1}^m \lambda_i f_i(x) + \sum_{i=1}^p \nu_i h_i(x)
+\]
+
+The Karush-Kuhn-Tucker (KKT) first-order optimality conditions require:
+\begin{align*}
+  \nabla_x \mathcal{L}(x^*, \lambda^*, \nu^*) &= 0 \\
+  f_i(x^*) &\le 0, \quad i = 1, \dots, m \\
+  \lambda_i^* &\ge 0, \quad i = 1, \dots, m \\
+  \lambda_i^* f_i(x^*) &= 0, \quad i = 1, \dots, m
+\end{align*}
+
+\end{document}</script>
+
+  <script type="text/template" id="tpl-paper">\documentclass[10pt, journal, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb}
+\usepackage[margin=0.85in]{geometry}
+\usepackage{booktabs}
+
+\title{\LARGE \textbf{Real-Time Latency Reduction in Local Scientific Typesetting}}
+\author{Alex Morgan, Jordan Vance, and Antigravity Systems Team}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Local scientific document compilation provides superior privacy and zero-cloud dependence. In this work, we present an optimized execution pipeline integrating a local TeX distribution with high-resolution HTML5 canvas rendering via client-side PDF abstraction.
+\end{abstract}
+
+\section{Introduction}
+Modern scientific authorship necessitates iterative preview feedback loops. Cloud-based environments introduce network transport latency and container cold starts.
+
+\section{Experimental Results}
+\begin{table}[h]
+\centering
+\caption{Compilation Performance Across Document Types}
+\label{tab:perf}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Document Type} & \textbf{Pages} & \textbf{pdflatex (s)} & \textbf{Canvas Render (ms)} \\
+\midrule
+Minimal Article        & 1              & 0.42                  & 18                          \\
+Math Heavy (KKT)       & 2              & 0.68                  & 32                          \\
+CircuiTikZ Schematic   & 1              & 0.95                  & 28                          \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Conclusion}
+Client-side vector rendering of PDF streams guarantees pixel-perfect fidelity without browser viewer plugin interference.
+
+\end{document}</script>
+
+  <script type="text/template" id="tpl-exam">\documentclass[12pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb}
+\usepackage[margin=1in]{geometry}
+\usepackage{circuitikz}
+
+\title{\textbf{Electronics \& Circuit Theory: Midterm Examination}}
+\author{Faculty of Electrical Engineering}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Question 26}
+\subsection*{(a) Draw the circuit diagram of a Bistable Multivibrator}
+Draw the circuit diagram of a symmetrical collector-coupled Bistable Multivibrator using NPN transistors and derive its trigger conditions.
+
+\subsection*{(b) In the Astable Multivibrator, calculate the period of oscillation}
+For an astable multivibrator with $R_1 = R_2 = 20\,\mathrm{k}\Omega$ and $C_1 = C_2 = 0.01\,\mu\mathrm{F}$, determine the frequency of oscillation $f = \frac{1}{1.38 R C}$.
+
+\section{Question 27}
+\subsection*{(a) Show that the efficiency of Class A amplifier is at most 25\%}
+Analyze the collector dissipation and show that the maximum theoretical conversion efficiency of a series-fed Class A amplifier is $25\%$.
+
+\subsection*{(b) What is cross over distortion in Class B push-pull amplifiers?}
+Explain how cross-over distortion originates due to base-emitter cut-in voltage $V_\gamma$ and discuss complementary symmetry biasing methods.
+
+\section{Question 28}
+\subsection*{(a) Design an automatic gain control (AGC) stage}
+State the requirements for wide dynamic range AGC loops in RF receivers.
+
+\subsection*{(b) Explain the operation of a differential amplifier}
+Derive the common-mode rejection ratio (CMRR) in terms of differential gain $A_d$ and common-mode gain $A_c$.
+
+\section{Question 29}
+\subsection*{(a) Explain the working principle of an Operational Amplifier}
+Discuss virtual ground concept and calculate closed-loop inverting gain $A_v = -R_f / R_{in}$.
+
+\subsection*{(b) Discuss the advantages of negative feedback}
+List stability, input impedance boost, output impedance reduction, and bandwidth extension.
+
+\section{Question 30}
+\subsection*{(a) Derive the expression for emitter follower gain}
+Evaluate the common-collector configuration and show voltage gain $A_v \approx 1$.
+
+\subsection*{(b) A Class B push-pull amplifier efficiency calculation}
+Calculate power dissipated in the output transistors for supply voltage $V_{cc} = 15\,\mathrm{V}$ and load $R_L = 8\,\Omega$.
+
+\section{Question 31}
+\subsection*{(a) Describe the internal block diagram of IC 555}
+Detail the function of the two internal comparators, the RS flip-flop, the discharge transistor, and the resistive voltage divider string ($3 \times 5\,\mathrm{k}\Omega$).
+
+\subsection*{(b) Design a 555 Timer-based monostable multivibrator}
+Calculate the pulse duration $T = 1.1 R C$ for a target output pulse width of $10\,\mathrm{ms}$ with $C = 1\,\mu\mathrm{F}$.
+
+\section{Question 32}
+\subsection*{(a) Prove that the maximum efficiency of Class B is 78.5\%}
+Evaluate $\eta = \frac{P_{ac}}{P_{dc}} = \frac{\pi}{4} \approx 78.5\%$.
+
+\subsection*{(b) Explain the working principle of a Wien Bridge Oscillator}
+State the Barkhausen criteria for sustained sinusoidal oscillations.
+
+\end{document}</script>
+
+  <script type="text/template" id="tpl-minimal">\documentclass[12pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+
+\title{Minimal LaTeX Document}
+\author{Author Name}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+Hello world! Write your LaTeX code here.
+
+\end{document}</script>
+
+  <!-- ====================================================================
+       APPLICATION LOGIC
+       ==================================================================== -->
+  <script>
+    // -------------------------------------------------------------------------
+    // 1. Initialize PDF.js Local Worker
+    // -------------------------------------------------------------------------
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
+    } else {
+      console.error('PDF.js library failed to load from /vendor/pdf.min.js');
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Destructure CodeMirror 6 Modules
+    // -------------------------------------------------------------------------
+    const {
+      EditorView,
+      EditorState,
+      basicSetup,
+      keymap,
+      indentWithTab,
+      StreamLanguage,
+      stex,
+      oneDark,
+      autocompletion,
+      completeFromList,
+      snippet
+    } = window.CodeMirrorEditor;
+
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // 3. Application State & Persistent Project Storage (localStorage)
+    // -------------------------------------------------------------------------
+    const STORAGE_KEY_FILES = 'texstudio_local_files_v1';
+    const STORAGE_KEY_ACTIVE = 'texstudio_local_active_file';
+
+    let initialFiles = {
+      'main.tex': document.getElementById('tpl-circuit').textContent.trim(),
+      'references.bib': `@article{shannon1948mathematical,
+  title={A Mathematical Theory of Communication},
+  author={Shannon, Claude E},
+  journal={Bell System Technical Journal},
+  volume={27},
+  number={3},
+  pages={379--423},
+  year={1948}
+}
+
+@book{turing1950computing,
+  title={Computing Machinery and Intelligence},
+  author={Turing, Alan M},
+  year={1950},
+  publisher={Mind}
+}
+
+@article{einstein1905electrodynamics,
+  title={On the electrodynamics of moving bodies},
+  author={Einstein, Albert},
+  journal={Annalen der Physik},
+  volume={17},
+  number={10},
+  pages={891--921},
+  year={1905}
+}`
+    };
+
+    let initialActiveFile = 'main.tex';
+
+    try {
+      const savedFilesRaw = localStorage.getItem(STORAGE_KEY_FILES);
+      if (savedFilesRaw) {
+        const parsed = JSON.parse(savedFilesRaw);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          initialFiles = parsed;
+          const savedActive = localStorage.getItem(STORAGE_KEY_ACTIVE);
+          if (savedActive && initialFiles[savedActive] !== undefined) {
+            initialActiveFile = savedActive;
+          } else if (initialFiles['main.tex'] !== undefined) {
+            initialActiveFile = 'main.tex';
+          } else {
+            initialActiveFile = Object.keys(initialFiles)[0];
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not load project files from localStorage:', err);
+    }
+
+    const state = {
+      isCompiling: false,
+      lastPdfBlob: null,
+      currentPdfDoc: null,
+      zoomLevel: 1.0,
+      zoomMode: 'custom',
+      currentPage: 1,
+      totalPages: 1,
+      darkPaper: false,
+      parsedProblems: [],
+      rawLog: '',
+      activeLayout: 'split',
+      currentEngine: 'pdflatex',
+      activeFile: initialActiveFile,
+      systemInfo: null,
+      files: initialFiles,
+      outlineItems: []
+    };
+
+    // -------------------------------------------------------------------------
+    // 4. DOM Elements Cache
+    // -------------------------------------------------------------------------
+    const dom = {
+      workspace:           document.getElementById('workspace'),
+      sidebar:             document.getElementById('sidebar'),
+      btnToggleSidebar:    document.getElementById('btn-toggle-sidebar'),
+      fileTreeContainer:   document.getElementById('file-tree-container'),
+      fileOutlineContainer: document.getElementById('file-outline-container'),
+      outlineCount:        document.getElementById('outline-count'),
+      headerFileTree:      document.getElementById('header-file-tree'),
+      headerFileOutline:   document.getElementById('header-file-outline'),
+      btnCloseSidebar:     document.getElementById('btn-close-sidebar'),
+      sidebarSplitter:     document.getElementById('sidebar-splitter'),
+      btnResetProject:     document.getElementById('btn-reset-project'),
+      btnAddFile:          document.getElementById('btn-add-file'),
+      btnUploadFile:       document.getElementById('btn-upload-file'),
+      fileUploadInput:     document.getElementById('file-upload-input'),
+      dropzoneOverlay:     document.getElementById('dropzone-overlay'),
+      editorPane:          document.getElementById('editor-pane'),
+      editorContainer:     document.getElementById('editor-container'),
+      editorFileTab:       document.getElementById('editor-file-tab'),
+      imagePreviewView:    document.getElementById('image-preview-view'),
+      imagePreviewImg:     document.getElementById('image-preview-img'),
+      imagePreviewInfo:    document.getElementById('image-preview-info'),
+      btnInsertImageTex:   document.getElementById('btn-insert-image-tex'),
+      previewPane:         document.getElementById('preview-pane'),
+      divider:             document.getElementById('divider'),
+      btnCompile:          document.getElementById('btn-compile'),
+      btnDownload:         document.getElementById('btn-download'),
+      emptyCompileBtn:     document.getElementById('empty-compile-btn'),
+      statusBadge:         document.getElementById('status-badge'),
+      statusDot:           document.getElementById('status-dot'),
+      statusText:          document.getElementById('status-text'),
+      dirtyDot:            document.getElementById('dirty-dot'),
+      activeFilename:      document.getElementById('active-filename'),
+      pdfStage:            document.getElementById('pdf-stage'),
+      emptyState:          document.getElementById('empty-state'),
+      pdfPagesContainer:   document.getElementById('pdf-pages-container'),
+      compilingOverlay:    document.getElementById('compiling-overlay'),
+      prevPageBtn:         document.getElementById('prev-page'),
+      nextPageBtn:         document.getElementById('next-page'),
+      pageNavInput:        document.getElementById('page-nav-input'),
+      pageNavTotal:        document.getElementById('page-nav-total'),
+      zoomInBtn:           document.getElementById('zoom-in'),
+      zoomOutBtn:          document.getElementById('zoom-out'),
+      zoomValText:         document.getElementById('zoom-value'),
+      zoomFitWidth:        document.getElementById('zoom-fit-width'),
+      zoomFitPage:         document.getElementById('zoom-fit-page'),
+      btnDarkPaper:        document.getElementById('btn-dark-paper'),
+      btnPrint:            document.getElementById('btn-print'),
+      btnFormat:           document.getElementById('btn-format'),
+      btnClear:            document.getElementById('btn-clear'),
+      diagnosticsDrawer:   document.getElementById('diagnostics-drawer'),
+      drawerClose:         document.getElementById('drawer-close'),
+      tabProblems:         document.getElementById('tab-problems'),
+      tabRawLog:           document.getElementById('tab-raw-log'),
+      problemList:         document.getElementById('problem-list'),
+      rawLogText:          document.getElementById('raw-log-text'),
+      errorCountBadge:     document.getElementById('error-count-badge'),
+      footerStatusMsg:     document.getElementById('footer-status-msg'),
+      footerDiagnosticsBtn:document.getElementById('footer-diagnostics-btn'),
+      footerEngine:        document.getElementById('footer-engine'),
+      cursorPos:           document.getElementById('cursor-pos'),
+      docStats:            document.getElementById('doc-stats'),
+      pageCountStatus:     document.getElementById('page-count-status'),
+      insertDropdown:      document.getElementById('insert-dropdown'),
+      insertBtn:           document.getElementById('insert-btn'),
+      projectDropdown:     document.getElementById('project-dropdown'),
+      projectBtn:          document.getElementById('project-btn'),
+      currentEngineLabel:  document.getElementById('current-engine-label'),
+      btnNavUpload:        document.getElementById('btn-nav-upload'),
+      btnEditorPalette:    document.getElementById('btn-editor-palette'),
+      btnEditorTable:      document.getElementById('btn-editor-table'),
+      layoutToggle:        document.getElementById('layout-toggle'),
+      btnExportZip:        document.getElementById('btn-export-zip'),
+      btnTableGen:         document.getElementById('btn-table-gen'),
+      modalTableGen:       document.getElementById('modal-table-gen'),
+      modalTableClose:     document.getElementById('modal-table-close'),
+      modalTableCancel:    document.getElementById('modal-table-cancel'),
+      modalTableInsert:    document.getElementById('modal-table-insert'),
+      tableBuilderGrid:    document.getElementById('table-builder-grid'),
+      tblRows:             document.getElementById('tbl-rows'),
+      tblCols:             document.getElementById('tbl-cols'),
+      tblStyle:            document.getElementById('tbl-style'),
+      tblCaption:          document.getElementById('tbl-caption'),
+      tblLabel:            document.getElementById('tbl-label'),
+      btnPalette:          document.getElementById('btn-palette'),
+      modalPalette:        document.getElementById('modal-palette'),
+      modalPaletteClose:   document.getElementById('modal-palette-close'),
+      modalPaletteDone:    document.getElementById('modal-palette-done'),
+      palSearch:           document.getElementById('pal-search'),
+      paletteGrid:         document.getElementById('palette-grid'),
+      btnWordCount:        document.getElementById('btn-word-count'),
+      modalWordCount:      document.getElementById('modal-word-count'),
+      modalWcClose:        document.getElementById('modal-wc-close'),
+      modalWcOk:           document.getElementById('modal-wc-ok'),
+      wcWords:             document.getElementById('wc-words'),
+      wcMath:              document.getElementById('wc-math'),
+      wcPages:             document.getElementById('wc-pages'),
+      wcChars:             document.getElementById('wc-chars'),
+      wcFigures:           document.getElementById('wc-figures'),
+      wcTables:            document.getElementById('wc-tables'),
+      wcReadTime:          document.getElementById('wc-read-time'),
+      btnHistory:          document.getElementById('btn-history'),
+      drawerHistory:       document.getElementById('drawer-history'),
+      historyCloseBtn:     document.getElementById('history-close-btn'),
+      snapshotNoteInput:   document.getElementById('snapshot-note-input'),
+      btnTakeSnapshot:     document.getElementById('btn-take-snapshot'),
+      snapshotList:        document.getElementById('snapshot-list'),
+      btnAiDrawer:         document.getElementById('btn-ai-drawer'),
+      drawerAi:            document.getElementById('drawer-ai'),
+      aiCloseBtn:          document.getElementById('ai-close-btn'),
+      aiPromptInput:       document.getElementById('ai-prompt-input'),
+      aiCopyPromptBtn:     document.getElementById('ai-copy-prompt-btn'),
+      aiExecuteBtn:        document.getElementById('ai-execute-btn'),
+      aiProviderSelect:    document.getElementById('ai-provider-select'),
+      aiEndpointInput:     document.getElementById('ai-endpoint-input'),
+      aiGeminiKey:         document.getElementById('ai-gemini-key'),
+      aiCustomKey:         document.getElementById('ai-custom-key'),
+      aiModelStatus:       document.getElementById('ai-model-status'),
+      endpointHint:        document.getElementById('endpoint-hint'),
+      groupGeminiKey:      document.getElementById('group-gemini-key'),
+      groupEndpoint:       document.getElementById('group-endpoint'),
+      groupCustomKey:      document.getElementById('group-custom-key'),
+      aiInsertCodeBtn:     document.getElementById('ai-insert-code-btn'),
+      geminiKeyStatus:     document.getElementById('gemini-key-status'),
+      aiResponseBox:       document.getElementById('ai-response-box'),
+      modalNewFile:        document.getElementById('modal-new-file'),
+      modalNfClose:        document.getElementById('modal-nf-close'),
+      modalNfCancel:       document.getElementById('modal-nf-cancel'),
+      modalNfCreate:       document.getElementById('modal-nf-create'),
+      nfInput:             document.getElementById('nf-input')
+    };
+
+    // -------------------------------------------------------------------------
+    // 5. Intelligent Autocompletion for CodeMirror 6 (\cite{}, \ref{}, commands)
+    // -------------------------------------------------------------------------
+    const latexCommonCommands = [
+      { label: '\\documentclass', detail: 'Declare document class' },
+      { label: '\\usepackage', detail: 'Import LaTeX package' },
+      { label: '\\begin', detail: 'Begin environment block' },
+      { label: '\\end', detail: 'End environment block' },
+      { label: '\\section', detail: 'Major section heading' },
+      { label: '\\subsection', detail: 'Subsection heading' },
+      { label: '\\subsubsection', detail: 'Sub-subsection heading' },
+      { label: '\\textbf', detail: 'Bold text weight' },
+      { label: '\\textit', detail: 'Italic text style' },
+      { label: '\\underline', detail: 'Underline text' },
+      { label: '\\emph', detail: 'Emphasize text' },
+      { label: '\\cite', detail: 'Cite bibliography entry' },
+      { label: '\\ref', detail: 'Cross-reference label' },
+      { label: '\\pageref', detail: 'Page cross-reference' },
+      { label: '\\label', detail: 'Define reference anchor' },
+      { label: '\\frac', detail: 'Fraction \\frac{num}{den}' },
+      { label: '\\sqrt', detail: 'Square root \\sqrt{x}' },
+      { label: '\\sum', detail: 'Summation operator' },
+      { label: '\\prod', detail: 'Product operator' },
+      { label: '\\int', detail: 'Integral operator' },
+      { label: '\\oint', detail: 'Closed path integral' },
+      { label: '\\alpha', detail: 'Greek symbol α' },
+      { label: '\\beta', detail: 'Greek symbol β' },
+      { label: '\\gamma', detail: 'Greek symbol γ' },
+      { label: '\\theta', detail: 'Greek symbol θ' },
+      { label: '\\lambda', detail: 'Greek symbol λ' },
+      { label: '\\omega', detail: 'Greek symbol ω' },
+      { label: '\\Omega', detail: 'Greek symbol Ω' },
+      { label: '\\Delta', detail: 'Greek symbol Δ' },
+      { label: '\\infty', detail: 'Infinity symbol ∞' },
+      { label: '\\partial', detail: 'Partial derivative ∂' },
+      { label: '\\nabla', detail: 'Vector gradient ∇' },
+      { label: '\\cdot', detail: 'Dot product ·' },
+      { label: '\\times', detail: 'Cross product ×' },
+      { label: '\\in', detail: 'Element of ∈' },
+      { label: '\\subset', detail: 'Subset of ⊂' },
+      { label: '\\approx', detail: 'Approximately equal ≈' },
+      { label: '\\le', detail: 'Less than or equal ≤' },
+      { label: '\\ge', detail: 'Greater than or equal ≥' },
+      { label: '\\neq', detail: 'Not equal ≠' },
+      { label: '\\pm', detail: 'Plus-minus ±' },
+      { label: '\\rightarrow', detail: 'Right arrow →' },
+      { label: '\\implies', detail: 'Implies arrow ⟹' },
+      { label: '\\iff', detail: 'If and only if ⟺' },
+      { label: '\\includegraphics', detail: 'Include graphics image' },
+      { label: '\\centering', detail: 'Center content' },
+      { label: '\\caption', detail: 'Figure or table caption' },
+      { label: '\\footnote', detail: 'Insert footnote' },
+      { label: '\\href', detail: 'Hyperlink \\href{url}{text}' },
+      { label: '\\url', detail: 'Typeset URL' }
+    ];
+
+    function extractBibKeys() {
+      const keys = [];
+      for (const [filename, content] of Object.entries(state.files)) {
+        if (filename.endsWith('.bib') && typeof content === 'string') {
+          const regex = /@(\w+)\s*\{\s*([^,\s]+),([\s\S]*?)(?=@|\Z)/g;
+          let match;
+          while ((match = regex.exec(content)) !== null) {
+            const citeKey = match[2].trim();
+            const body = match[3];
+            const titleMatch = body.match(/title\s*=\s*[\{"]([^"\}]+)[\}"]/i);
+            const title = titleMatch ? titleMatch[1] : match[1];
+            keys.push({ label: citeKey, detail: title, type: 'keyword' });
+          }
+        }
+      }
+      return keys;
+    }
+
+    function extractLabels() {
+      const labels = [];
+      for (const [filename, content] of Object.entries(state.files)) {
+        if (filename.endsWith('.tex') && typeof content === 'string') {
+          const regex = /\\label\{([^}]+)\}/g;
+          let match;
+          while ((match = regex.exec(content)) !== null) {
+            labels.push({ label: match[1], detail: filename, type: 'variable' });
+          }
+        }
+      }
+      return labels;
+    }
+
+    function latexCompleter(context) {
+      const lineBefore = context.matchBefore(/\\cite\{[^}]*|\\ref\{[^}]*|\\[a-zA-Z]*/);
+      if (!lineBefore) return null;
+
+      if (lineBefore.text.startsWith('\\cite{')) {
+        const query = lineBefore.text.slice(6);
+        const bibs = extractBibKeys();
+        return {
+          from: lineBefore.from + 6,
+          options: bibs
+        };
+      }
+
+      if (lineBefore.text.startsWith('\\ref{')) {
+        const query = lineBefore.text.slice(5);
+        const lbls = extractLabels();
+        return {
+          from: lineBefore.from + 5,
+          options: lbls
+        };
+      }
+
+      if (lineBefore.text.startsWith('\\')) {
+        return {
+          from: lineBefore.from,
+          options: latexCommonCommands.map(c => ({ label: c.label, detail: c.detail, type: 'function' }))
+        };
+      }
+
+      return null;
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. CodeMirror 6 Editor Initialization & Project Persistence
+    // -------------------------------------------------------------------------
+    let saveStorageTimer = null;
+    function scheduleSaveToStorage(immediate = false) {
+      if (immediate) {
+        if (saveStorageTimer) clearTimeout(saveStorageTimer);
+        executeSaveToStorage();
+        return;
+      }
+      if (saveStorageTimer) clearTimeout(saveStorageTimer);
+      saveStorageTimer = setTimeout(executeSaveToStorage, 350);
+    }
+
+    function executeSaveToStorage() {
+      try {
+        if (window.editor && typeof state.files[state.activeFile] === 'string' && !state.files[state.activeFile].startsWith('data:')) {
+          state.files[state.activeFile] = editor.state.doc.toString();
+        }
+        localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(state.files));
+        localStorage.setItem(STORAGE_KEY_ACTIVE, state.activeFile);
+      } catch (err) {
+        console.warn('localStorage save warning (storage may be full):', err);
+      }
+    }
+
+    window.addEventListener('beforeunload', () => executeSaveToStorage());
+    window.addEventListener('blur', () => executeSaveToStorage());
+
+    let outlineTimer = null;
+    function scheduleOutlineUpdate() {
+      if (outlineTimer) clearTimeout(outlineTimer);
+      outlineTimer = setTimeout(renderFileOutline, 250);
+    }
+
+    const statsUpdateListener = EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        state.files[state.activeFile] = editor.state.doc.toString();
+        dom.dirtyDot.classList.add('dirty');
+        dom.dirtyDot.title = 'Document modified (uncompiled changes)';
+        updateStats();
+        scheduleSaveToStorage(false);
+        scheduleOutlineUpdate();
+      }
+      if (update.selectionSet || update.docChanged) {
+        updateCursorPosition();
+        if (state.outlineItems && state.outlineItems.length > 0) {
+          const pos = editor.state.selection.main.head;
+          const line = editor.state.doc.lineAt(pos);
+          highlightActiveOutlineItem(line.number);
+        }
+      }
+    });
+
+    const editor = new EditorView({
+      state: EditorState.create({
+        doc: state.files[state.activeFile] || state.files['main.tex'] || '',
+        extensions: [
+          basicSetup,
+          StreamLanguage.define(stex),
+          oneDark,
+          autocompletion({ override: [latexCompleter] }),
+          statsUpdateListener,
+          keymap.of([
+            indentWithTab,
+            {
+              key: 'Ctrl-Enter',
+              mac: 'Cmd-Enter',
+              run: () => { compileDocument(); return true; }
+            },
+            {
+              key: 'Ctrl-b',
+              mac: 'Cmd-b',
+              run: () => { toggleSidebar(); return true; }
+            }
+          ]),
+          EditorView.theme({
+            '&': { height: '100%' },
+            '.cm-scroller': { overflow: 'auto' },
+            '.cm-content': { minHeight: '100%' }
+          })
+        ]
+      }),
+      parent: dom.editorContainer
+    });
+    window.editor = editor;
+
+    dom.editorContainer.addEventListener('click', (e) => {
+      if (e.target === dom.editorContainer) editor.focus();
+    });
+
+    function updateCursorPosition() {
+      const pos = editor.state.selection.main.head;
+      const line = editor.state.doc.lineAt(pos);
+      const col = pos - line.from + 1;
+      dom.cursorPos.textContent = `Ln ${line.number}, Col ${col}`;
+    }
+
+    function updateStats() {
+      const text = editor.state.doc.toString();
+      const words = (text.match(/\b\S+\b/g) || []).length;
+      const lines = editor.state.doc.lines;
+      dom.docStats.textContent = `${words} words • ${lines} lines`;
+    }
+    updateStats();
+    updateCursorPosition();
+
+    // -------------------------------------------------------------------------
+    // 7. Multi-File Project Explorer & File Switching
+    // -------------------------------------------------------------------------
+    function renderFileTree() {
+      const container = dom.fileTreeContainer;
+      container.innerHTML = '';
+
+      const filenames = Object.keys(state.files).sort((a, b) => {
+        if (a === 'main.tex') return -1;
+        if (b === 'main.tex') return 1;
+        return a.localeCompare(b);
+      });
+
+      for (const fn of filenames) {
+        const isCurrent = fn === state.activeFile;
+        const isImage = fn.startsWith('data:') || /\.(png|jpg|jpeg|gif|svg|pdf)$/i.test(fn);
+        const isBib = fn.endsWith('.bib');
+
+        const item = document.createElement('div');
+        item.className = `file-item ${isCurrent ? 'active' : ''}`;
+        item.dataset.filename = fn;
+
+        let iconSvg = '';
+        if (isImage) {
+          iconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+        } else if (isBib) {
+          iconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+        } else {
+          iconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+        }
+
+        item.innerHTML = `
+          ${iconSvg}
+          <span class="file-item-name">${fn}</span>
+          ${fn !== 'main.tex' ? `
+            <button class="file-item-del" title="Delete file" data-filename="${fn}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>` : ''}
+        `;
+
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('.file-item-del')) return;
+          switchActiveFile(fn);
+        });
+
+        const delBtn = item.querySelector('.file-item-del');
+        if (delBtn) {
+          delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete '${fn}' from project?`)) {
+              delete state.files[fn];
+              scheduleSaveToStorage(true);
+              if (state.activeFile === fn) switchActiveFile('main.tex');
+              else renderFileTree();
+            }
+          });
+        }
+
+        container.appendChild(item);
+      }
+    }
+
+    function switchActiveFile(newFilename) {
+      if (!state.files[newFilename] && state.files[newFilename] !== '') return;
+
+      // Save previous file if it was a text document
+      if (typeof state.files[state.activeFile] === 'string' && !state.files[state.activeFile].startsWith('data:')) {
+        state.files[state.activeFile] = editor.state.doc.toString();
+      }
+
+      state.activeFile = newFilename;
+      dom.activeFilename.textContent = newFilename;
+      dom.editorFileTab.textContent = newFilename;
+
+      const content = state.files[newFilename];
+      const isImage = typeof content === 'string' && content.startsWith('data:image/');
+
+      if (isImage) {
+        dom.editorContainer.style.display = 'none';
+        dom.imagePreviewView.classList.add('active');
+        dom.imagePreviewImg.src = content;
+        dom.imagePreviewInfo.textContent = `${newFilename} (Asset)`;
+      } else {
+        dom.imagePreviewView.classList.remove('active');
+        dom.editorContainer.style.display = 'block';
+        editor.dispatch({
+          changes: { from: 0, to: editor.state.doc.length, insert: content || '' }
+        });
+        editor.focus();
+      }
+
+      renderFileTree();
+      renderFileOutline();
+      scheduleSaveToStorage(true);
+    }
+
+    function toggleSidebar(forceOpen) {
+      if (typeof forceOpen === 'boolean') {
+        dom.sidebar.classList.toggle('collapsed', !forceOpen);
+      } else {
+        dom.sidebar.classList.toggle('collapsed');
+      }
+      const isOpen = !dom.sidebar.classList.contains('collapsed');
+      dom.btnToggleSidebar.classList.toggle('active', isOpen);
+    }
+    dom.btnToggleSidebar.addEventListener('click', () => toggleSidebar());
+
+    if (dom.btnCloseSidebar) {
+      dom.btnCloseSidebar.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSidebar(false);
+      });
+    }
+
+    // Header Accordion Toggles
+    if (dom.headerFileTree) {
+      dom.headerFileTree.addEventListener('click', (e) => {
+        if (e.target.closest('.sidebar-actions')) return;
+        document.querySelector('.file-tree-section').classList.toggle('collapsed');
+      });
+    }
+    if (dom.headerFileOutline) {
+      dom.headerFileOutline.addEventListener('click', () => {
+        document.querySelector('.file-outline-section').classList.toggle('collapsed');
+      });
+    }
+
+    // Horizontal Splitter Dragging between Tree and Outline
+    let isSidebarSplitterDragging = false;
+    if (dom.sidebarSplitter) {
+      dom.sidebarSplitter.addEventListener('mousedown', (e) => {
+        isSidebarSplitterDragging = true;
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isSidebarSplitterDragging) return;
+        const sidebarRect = dom.sidebar.getBoundingClientRect();
+        const offsetY = e.clientY - sidebarRect.top;
+        const clampedY = Math.max(60, Math.min(offsetY, sidebarRect.height - 80));
+        const fileTreeSec = document.querySelector('.file-tree-section');
+        if (fileTreeSec) fileTreeSec.style.flex = `0 0 ${clampedY}px`;
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isSidebarSplitterDragging) {
+          isSidebarSplitterDragging = false;
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+        }
+      });
+    }
+
+    // New File Dialog
+    dom.btnAddFile.addEventListener('click', () => {
+      dom.modalNewFile.classList.add('open');
+      dom.nfInput.value = '';
+      dom.nfInput.focus();
+    });
+    dom.modalNfClose.addEventListener('click', () => dom.modalNewFile.classList.remove('open'));
+    dom.modalNfCancel.addEventListener('click', () => dom.modalNewFile.classList.remove('open'));
+    dom.modalNfCreate.addEventListener('click', () => {
+      let name = dom.nfInput.value.trim();
+      if (!name) return;
+      if (!name.includes('.')) name += '.tex';
+      if (state.files[name]) {
+        alert('A file with this name already exists.');
+        return;
+      }
+      state.files[name] = `% ${name}\n`;
+      dom.modalNewFile.classList.remove('open');
+      switchActiveFile(name);
+      scheduleSaveToStorage(true);
+    });
+
+    // File Upload / Drag and Drop
+    dom.btnUploadFile.addEventListener('click', () => dom.fileUploadInput.click());
+    dom.fileUploadInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleFileImport(file);
+      dom.fileUploadInput.value = '';
+    });
+
+    function handleFileImport(file) {
+      const reader = new FileReader();
+      const isImg = file.type.startsWith('image/');
+
+      if (isImg) {
+        reader.onload = (e) => {
+          const dataUrl = e.target.result;
+          const targetName = `figures/${file.name}`;
+          state.files[targetName] = dataUrl;
+          renderFileTree();
+          scheduleSaveToStorage(true);
+          // Insert figure in main.tex
+          const snippetText = `\n\\begin{figure}[h]\n  \\centering\n  \\includegraphics[width=0.75\\linewidth]{${targetName}}\n  \\caption{${file.name}}\n  \\label{fig:${file.name.replace(/\.[^/.]+$/, '')}}\n\\end{figure}\n`;
+          const pos = editor.state.selection.main.head;
+          editor.dispatch({
+            changes: { from: pos, to: pos, insert: snippetText }
+          });
+          editor.focus();
+        };
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = (e) => {
+          state.files[file.name] = e.target.result;
+          switchActiveFile(file.name);
+          scheduleSaveToStorage(true);
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    // Drag-and-drop onto workspace
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dom.dropzoneOverlay.classList.add('active');
+    });
+    window.addEventListener('dragleave', (e) => {
+      if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+        dom.dropzoneOverlay.classList.remove('active');
+      }
+    });
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dom.dropzoneOverlay.classList.remove('active');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFileImport(e.dataTransfer.files[0]);
+      }
+    });
+
+    dom.btnInsertImageTex.addEventListener('click', () => {
+      const targetName = state.activeFile;
+      switchActiveFile('main.tex');
+      const snippetText = `\n\\begin{figure}[h]\n  \\centering\n  \\includegraphics[width=0.75\\linewidth]{${targetName}}\n  \\caption{${targetName}}\n\\end{figure}\n`;
+      const pos = editor.state.selection.main.head;
+      editor.dispatch({ changes: { from: pos, to: pos, insert: snippetText } });
+    });
+
+    // -------------------------------------------------------------------------
+    // 7B. File Outline Parser & Document Navigation
+    // -------------------------------------------------------------------------
+    function cleanLatexTitle(str) {
+      if (!str) return '';
+      return str
+        .replace(/\\(textbf|textit|emph|text|mathrm|mathbf|underline)\{([^}]+)\}/g, '$2')
+        .replace(/\\label\{[^}]+\}/g, '')
+        .replace(/\\[a-zA-Z]+/g, '')
+        .replace(/[{}]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function parseLatexOutline(texContent) {
+      if (!texContent || typeof texContent !== 'string') return [];
+      const lines = texContent.split('\n');
+      const items = [];
+      let autoQ = 0;
+
+      for (let i = 0; i < lines.length; i++) {
+        const rawLine = lines[i];
+        const trimmed = rawLine.trim();
+        if (trimmed.startsWith('%')) continue;
+        const lineText = rawLine.replace(/(^|[^\\])%.*$/, '$1');
+
+        // 1. Standard LaTeX headings: \part, \chapter, \section, \subsection, \subsubsection, \paragraph, \subparagraph
+        const secMatch = lineText.match(/\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?(?:\[[^\]]*\])?\{([^}]+)\}/);
+        if (secMatch) {
+          const cmd = secMatch[1].toLowerCase();
+          let lvl = 2;
+          if (cmd === 'part') lvl = 0;
+          else if (cmd === 'chapter') lvl = 1;
+          else if (cmd === 'section') lvl = 2;
+          else if (cmd === 'subsection') lvl = 3;
+          else if (cmd === 'subsubsection') lvl = 4;
+          else if (cmd === 'paragraph' || cmd === 'subparagraph') lvl = 5;
+
+          items.push({
+            id: `outline-item-${i + 1}`,
+            title: cleanLatexTitle(secMatch[2]),
+            cmd: cmd,
+            level: lvl,
+            lineNumber: i + 1
+          });
+          continue;
+        }
+
+        // 2. Beamer frames: \begin{frame}{...} or \frametitle{...}
+        const frameMatch = lineText.match(/\\begin\{frame\}(?:\[[^\]]*\])?\{([^}]+)\}/) || lineText.match(/\\frametitle\{([^}]+)\}/);
+        if (frameMatch) {
+          items.push({
+            id: `outline-item-${i + 1}`,
+            title: cleanLatexTitle(frameMatch[1]),
+            cmd: 'frame',
+            level: 2,
+            lineNumber: i + 1
+          });
+          continue;
+        }
+
+        // 3. Question class / Problem sets: \question[...]{...} or \question Question Title
+        const qMatch = lineText.match(/\\question(?:\[[^\]]*\])?(?:\s*\{([^}]+)\}|\s+([^\n%]+))?/);
+        if (qMatch) {
+          autoQ++;
+          const qTitle = (qMatch[1] || qMatch[2] || '').trim();
+          items.push({
+            id: `outline-item-${i + 1}`,
+            title: qTitle ? cleanLatexTitle(qTitle) : `Question ${autoQ}`,
+            cmd: 'question',
+            level: 2,
+            lineNumber: i + 1
+          });
+          continue;
+        }
+
+        // 4. Exam parts & items: \part[(a)], \subpart, \item[(a)] ...
+        const itemMatch = lineText.match(/\\item\s*\[\s*(\([a-zA-Z0-9]+\)|[a-zA-Z0-9]\.|\([0-9]+\))\s*\]\s*([^\n%]+)?/) ||
+                          lineText.match(/\\(subpart|part)\b(?:\[([^\]]+)\])?(?:\s*\{([^}]+)\}|\s+([^\n%]+))?/);
+        if (itemMatch) {
+          let label = '';
+          if (itemMatch[0].includes('\\item')) {
+            const marker = itemMatch[1] || '';
+            const rest = (itemMatch[2] || '').trim();
+            label = `${marker} ${cleanLatexTitle(rest)}`.trim();
+          } else {
+            const marker = itemMatch[2] || '';
+            const rest = (itemMatch[3] || itemMatch[4] || '').trim();
+            label = `${marker ? marker + ' ' : ''}${cleanLatexTitle(rest)}`.trim() || 'Part';
+          }
+          items.push({
+            id: `outline-item-${i + 1}`,
+            title: label,
+            cmd: 'item',
+            level: 3,
+            lineNumber: i + 1
+          });
+          continue;
+        }
+      }
+      return items;
+    }
+
+    function renderFileOutline() {
+      const container = dom.fileOutlineContainer;
+      if (!container) return;
+
+      const currentContent = (state.activeFile && typeof state.files[state.activeFile] === 'string' && !state.files[state.activeFile].startsWith('data:'))
+        ? (state.activeFile === (editor ? state.activeFile : '') ? editor.state.doc.toString() : state.files[state.activeFile])
+        : '';
+
+      if (!state.activeFile.endsWith('.tex') && !state.activeFile.endsWith('.sty') && !state.activeFile.endsWith('.cls')) {
+        container.innerHTML = '<div class="file-outline-empty">Outline available for LaTeX files (.tex)</div>';
+        if (dom.outlineCount) dom.outlineCount.textContent = '0';
+        return;
+      }
+
+      const items = parseLatexOutline(currentContent);
+      state.outlineItems = items;
+      if (dom.outlineCount) dom.outlineCount.textContent = items.length;
+
+      if (items.length === 0) {
+        container.innerHTML = `
+          <div class="file-outline-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:24px;height:24px;margin-bottom:6px;opacity:0.4;">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/>
+            </svg>
+            <div>No headings found</div>
+            <div style="font-size:10px;opacity:0.7;margin-top:2px;">Use \\section{...} or \\subsection{...}</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+
+      items.forEach((item, idx) => {
+        const el = document.createElement('div');
+        el.className = 'outline-tree-item';
+        el.dataset.id = item.id;
+        el.dataset.line = item.lineNumber;
+        el.dataset.level = item.level;
+        el.title = `Jump to line ${item.lineNumber}: ${item.title}`;
+
+        const hasNext = idx + 1 < items.length;
+        const isParent = hasNext && items[idx + 1].level > item.level;
+
+        let toggleHtml = '';
+        if (isParent) {
+          toggleHtml = `
+            <span class="outline-toggle-btn" title="Toggle children">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </span>
+          `;
+        } else {
+          toggleHtml = '<span style="width: 16px; flex-shrink: 0;"></span>';
+        }
+
+        el.innerHTML = `
+          ${toggleHtml}
+          <span class="outline-item-title">${escapeHtml(item.title)}</span>
+          <span class="outline-item-line">:${item.lineNumber}</span>
+        `;
+
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.outline-toggle-btn')) {
+            e.stopPropagation();
+            toggleOutlineChildren(el, idx, items);
+            return;
+          }
+          jumpToOutlineHeading(item.lineNumber);
+        });
+
+        container.appendChild(el);
+      });
+
+      if (window.editor) {
+        const pos = editor.state.selection.main.head;
+        const line = editor.state.doc.lineAt(pos);
+        highlightActiveOutlineItem(line.number);
+      }
+    }
+
+    function toggleOutlineChildren(parentEl, parentIdx, items) {
+      const toggleBtn = parentEl.querySelector('.outline-toggle-btn');
+      const isCollapsed = toggleBtn.classList.toggle('collapsed');
+      const parentLevel = items[parentIdx].level;
+      const allItemEls = Array.from(dom.fileOutlineContainer.querySelectorAll('.outline-tree-item'));
+
+      for (let i = parentIdx + 1; i < items.length; i++) {
+        if (items[i].level <= parentLevel) break;
+        const childEl = allItemEls[i];
+        if (childEl) {
+          childEl.style.display = isCollapsed ? 'none' : 'flex';
+        }
+      }
+    }
+
+    function jumpToOutlineHeading(lineNumber) {
+      const ed = window.editor || editor;
+      if (!ed) return;
+      const doc = ed.state.doc;
+      const targetLine = Math.min(Math.max(1, lineNumber), doc.lines);
+      const lineObj = doc.line(targetLine);
+
+      // Move cursor and selection
+      ed.dispatch({
+        selection: { anchor: lineObj.from, head: lineObj.from },
+        scrollIntoView: true
+      });
+
+      // Smoothly scroll editor viewport to the target line
+      try {
+        const lineBlock = ed.lineBlockAt(lineObj.from);
+        if (lineBlock && ed.scrollDOM) {
+          const targetY = Math.max(0, lineBlock.top - 80);
+          ed.scrollDOM.scrollTo({ top: targetY, behavior: 'smooth' });
+        }
+      } catch (err) {
+        console.warn('Scroll error:', err);
+      }
+
+      // Give focus to editor
+      ed.focus();
+      highlightActiveOutlineItem(targetLine);
+    }
+
+    function highlightActiveOutlineItem(currentLine) {
+      if (!state.outlineItems || state.outlineItems.length === 0) return;
+      const container = dom.fileOutlineContainer;
+      if (!container) return;
+
+      let activeItem = null;
+      for (let i = 0; i < state.outlineItems.length; i++) {
+        if (state.outlineItems[i].lineNumber <= currentLine) {
+          activeItem = state.outlineItems[i];
+        } else {
+          break;
+        }
+      }
+
+      const allItemEls = container.querySelectorAll('.outline-tree-item');
+      allItemEls.forEach(el => el.classList.remove('active'));
+
+      if (activeItem) {
+        const activeEl = container.querySelector(`.outline-tree-item[data-id="${activeItem.id}"]`);
+        if (activeEl) {
+          activeEl.classList.add('active');
+        }
+      }
+    }
+
+    // Initial Renders
+    renderFileTree();
+    renderFileOutline();
+    toggleSidebar(false); // Ensure hidden by default as requested!
+
+    // -------------------------------------------------------------------------
+    // 8. Custom PDF.js Canvas Rendering Engine
+    // -------------------------------------------------------------------------
+    async function renderPdfDocument(pdfData) {
+      try {
+        const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+        state.currentPdfDoc = await loadingTask.promise;
+        state.totalPages = state.currentPdfDoc.numPages;
+        dom.pageCountStatus.textContent = `${state.totalPages} ${state.totalPages === 1 ? 'page' : 'pages'}`;
+        if (dom.pageNavTotal) dom.pageNavTotal.textContent = `/ ${state.totalPages}`;
+        if (dom.pageNavInput) {
+          dom.pageNavInput.max = state.totalPages;
+          dom.pageNavInput.value = 1;
+        }
+        state.currentPage = 1;
+
+        dom.emptyState.style.display = 'none';
+        dom.pdfPagesContainer.style.display = 'flex';
+        dom.btnDownload.disabled = false;
+
+        await renderAllPages();
+      } catch (err) {
+        console.error('Error rendering PDF:', err);
+        setAppStatus('error', 'Render Error');
+      }
+    }
+
+    async function renderAllPages() {
+      if (!state.currentPdfDoc) return;
+
+      const container = dom.pdfPagesContainer;
+      container.innerHTML = '';
+
+      const firstPage = await state.currentPdfDoc.getPage(1);
+      const unscaledViewport = firstPage.getViewport({ scale: 1.0 });
+
+      const stageWidth = dom.pdfStage.clientWidth - 70;
+      const stageHeight = dom.pdfStage.clientHeight - 80;
+
+      let effectiveScale = state.zoomLevel;
+      if (state.zoomMode === 'fit-width') {
+        effectiveScale = Math.max(0.4, stageWidth / unscaledViewport.width);
+        dom.zoomValText.textContent = `${Math.round(effectiveScale * 100)}%`;
+      } else if (state.zoomMode === 'fit-page') {
+        const scaleW = stageWidth / unscaledViewport.width;
+        const scaleH = stageHeight / unscaledViewport.height;
+        effectiveScale = Math.max(0.4, Math.min(scaleW, scaleH));
+        dom.zoomValText.textContent = `${Math.round(effectiveScale * 100)}%`;
+      }
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+
+      for (let num = 1; num <= state.totalPages; num++) {
+        const page = await state.currentPdfDoc.getPage(num);
+        const viewport = page.getViewport({ scale: effectiveScale });
+
+        const pageCard = document.createElement('div');
+        pageCard.className = 'pdf-page-card';
+        pageCard.id = `pdf-page-${num}`;
+        pageCard.dataset.page = num;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.floor(viewport.width * dpr);
+        canvas.height = Math.floor(viewport.height * dpr);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+        const ctx = canvas.getContext('2d', { alpha: false });
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null;
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: viewport,
+          transform: transform
+        };
+
+        const badge = document.createElement('div');
+        badge.className = 'pdf-page-badge';
+        badge.textContent = `Page ${num} of ${state.totalPages}`;
+
+        pageCard.appendChild(canvas);
+        pageCard.appendChild(badge);
+        container.appendChild(pageCard);
+
+        await page.render(renderContext).promise;
+      }
+
+      setupIntersectionObserver();
+    }
+
+    let pageObserver = null;
+    function setupIntersectionObserver() {
+      if (pageObserver) pageObserver.disconnect();
+
+      pageObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const pageNum = parseInt(entry.target.dataset.page, 10);
+            if (pageNum) {
+              state.currentPage = pageNum;
+              if (dom.pageNavInput && document.activeElement !== dom.pageNavInput) {
+                dom.pageNavInput.value = pageNum;
+              }
+              if (dom.pageNavTotal) dom.pageNavTotal.textContent = `/ ${state.totalPages}`;
+              dom.prevPageBtn.disabled = pageNum <= 1;
+              dom.nextPageBtn.disabled = pageNum >= state.totalPages;
+            }
+          }
+        }
+      }, { root: dom.pdfStage, threshold: 0.5 });
+
+      document.querySelectorAll('.pdf-page-card').forEach(el => pageObserver.observe(el));
+    }
+
+    function scrollToPage(pageNum) {
+      const target = document.getElementById(`pdf-page-${pageNum}`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    function goToCustomPage(val) {
+      let pageNum = parseInt(val, 10);
+      if (isNaN(pageNum) || pageNum < 1) pageNum = 1;
+      if (pageNum > state.totalPages) pageNum = state.totalPages;
+      if (dom.pageNavInput) dom.pageNavInput.value = pageNum;
+      scrollToPage(pageNum);
+    }
+
+    if (dom.pageNavInput) {
+      dom.pageNavInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          goToCustomPage(dom.pageNavInput.value);
+          dom.pageNavInput.blur();
+        }
+      });
+      dom.pageNavInput.addEventListener('change', () => {
+        goToCustomPage(dom.pageNavInput.value);
+      });
+      dom.pageNavInput.addEventListener('focus', () => {
+        dom.pageNavInput.select();
+      });
+    }
+
+    dom.prevPageBtn.addEventListener('click', () => {
+      if (state.currentPage > 1) scrollToPage(state.currentPage - 1);
+    });
+    dom.nextPageBtn.addEventListener('click', () => {
+      if (state.currentPage < state.totalPages) scrollToPage(state.currentPage + 1);
+    });
+
+    // Zoom Controls
+    function setZoom(newZoom) {
+      state.zoomMode = 'custom';
+      state.zoomLevel = Math.max(0.3, Math.min(3.0, newZoom));
+      dom.zoomValText.textContent = `${Math.round(state.zoomLevel * 100)}%`;
+      dom.zoomFitWidth.classList.remove('active');
+      dom.zoomFitPage.classList.remove('active');
+      renderAllPages();
+    }
+
+    dom.zoomInBtn.addEventListener('click', () => setZoom(state.zoomLevel + 0.15));
+    dom.zoomOutBtn.addEventListener('click', () => setZoom(state.zoomLevel - 0.15));
+    dom.zoomValText.addEventListener('click', () => setZoom(1.0));
+
+    dom.zoomFitWidth.addEventListener('click', () => {
+      state.zoomMode = 'fit-width';
+      dom.zoomFitWidth.classList.add('active');
+      dom.zoomFitPage.classList.remove('active');
+      renderAllPages();
+    });
+
+    dom.zoomFitPage.addEventListener('click', () => {
+      state.zoomMode = 'fit-page';
+      dom.zoomFitPage.classList.add('active');
+      dom.zoomFitWidth.classList.remove('active');
+      renderAllPages();
+    });
+
+    // Dark Paper Mode
+    dom.btnDarkPaper.addEventListener('click', () => {
+      state.darkPaper = !state.darkPaper;
+      dom.pdfStage.classList.toggle('dark-paper', state.darkPaper);
+      dom.btnDarkPaper.classList.toggle('active', state.darkPaper);
+    });
+
+    // Print Document
+    dom.btnPrint.addEventListener('click', () => {
+      if (!state.lastPdfBlob) return;
+      const fileUrl = URL.createObjectURL(state.lastPdfBlob);
+      const printIframe = document.createElement('iframe');
+      printIframe.style.display = 'none';
+      printIframe.src = fileUrl;
+      document.body.appendChild(printIframe);
+      printIframe.onload = () => {
+        printIframe.contentWindow.focus();
+        printIframe.contentWindow.print();
+        setTimeout(() => document.body.removeChild(printIframe), 3000);
+      };
+    });
+
+    // Download PDF
+    dom.btnDownload.addEventListener('click', () => {
+      if (!state.lastPdfBlob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(state.lastPdfBlob);
+      a.download = 'document.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+
+    // -------------------------------------------------------------------------
+    // 9. Compilation Pipeline (Multi-File & Multi-Engine JSON Payload)
+    // -------------------------------------------------------------------------
+    function setAppStatus(type, msg) {
+      dom.statusDot.className = `status-dot ${type}`;
+      dom.statusText.textContent = msg;
+    }
+
+    async function compileDocument() {
+      if (state.isCompiling) return;
+      state.isCompiling = true;
+
+      // Sync active editor content to memory
+      if (typeof state.files[state.activeFile] === 'string' && !state.files[state.activeFile].startsWith('data:')) {
+        state.files[state.activeFile] = editor.state.doc.toString();
+      }
+
+      const startTime = performance.now();
+      setAppStatus('compiling', 'Compiling...');
+      dom.btnCompile.classList.add('compiling');
+      dom.compilingOverlay.classList.add('show');
+      dom.diagnosticsDrawer.classList.remove('open');
+
+      try {
+        const payload = {
+          files: state.files,
+          mainFile: 'main.tex',
+          engine: state.currentEngine,
+          synctex: true
+        };
+
+        const response = await fetch('/compile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(2);
+
+        if (response.ok) {
+          const pdfBlob = await response.blob();
+          state.lastPdfBlob = pdfBlob;
+
+          const arrayBuffer = await pdfBlob.arrayBuffer();
+          await renderPdfDocument(arrayBuffer);
+
+          dom.dirtyDot.classList.remove('dirty');
+          dom.dirtyDot.title = 'Saved and up to date';
+          setAppStatus('ready', `Compiled (${elapsedSec}s)`);
+          dom.footerStatusMsg.textContent = `Compiled in ${elapsedSec}s`;
+          dom.errorCountBadge.textContent = '0';
+          state.parsedProblems = [];
+
+          // Auto-save snapshot
+          saveSnapshot(`Auto-compile (${state.currentEngine})`);
+        } else {
+          const data = await response.json();
+          handleCompileError(data.log || 'Unknown compilation error', elapsedSec);
+        }
+      } catch (err) {
+        handleCompileError(`Connection error: ${err.message}`, 0);
+      } finally {
+        state.isCompiling = false;
+        dom.btnCompile.classList.remove('compiling');
+        dom.compilingOverlay.classList.remove('show');
+      }
+    }
+
+    dom.btnCompile.addEventListener('click', compileDocument);
+    dom.emptyCompileBtn.addEventListener('click', compileDocument);
+
+    // -------------------------------------------------------------------------
+    // 10. LaTeX Error Diagnostics & Parsing
+    // -------------------------------------------------------------------------
+    function handleCompileError(rawLog, elapsedSec) {
+      setAppStatus('error', 'Compilation Failed');
+      dom.footerStatusMsg.textContent = `Error in ${elapsedSec}s`;
+
+      state.rawLog = rawLog;
+      dom.rawLogText.textContent = rawLog;
+
+      const problems = [];
+      const lines = rawLog.split('\n');
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.startsWith('!')) {
+          const errorMsg = line.substring(1).trim();
+          let lineNum = null;
+          let contextSnippet = '';
+
+          for (let j = i + 1; j < Math.min(i + 7, lines.length); j++) {
+            const match = lines[j].match(/^l\.(\d+)(.*)/);
+            if (match) {
+              lineNum = parseInt(match[1], 10);
+              contextSnippet = match[2].trim();
+              break;
+            }
+          }
+
+          problems.push({ msg: errorMsg, line: lineNum, context: contextSnippet });
+        }
+      }
+
+      state.parsedProblems = problems;
+      dom.errorCountBadge.textContent = problems.length || 1;
+
+      dom.problemList.innerHTML = '';
+      if (problems.length > 0) {
+        problems.forEach((p) => {
+          const card = document.createElement('div');
+          card.className = 'problem-card';
+          card.innerHTML = `
+            <div class="problem-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div class="problem-details">
+              <div class="problem-msg">${escapeHtml(p.msg)}</div>
+              ${p.context ? `<div class="problem-context">${escapeHtml(p.context)}</div>` : ''}
+            </div>
+            ${p.line ? `<button class="problem-jump-btn" data-line="${p.line}">Line ${p.line} ↗</button>` : ''}
+          `;
+          dom.problemList.appendChild(card);
+        });
+
+        dom.problemList.querySelectorAll('.problem-jump-btn').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const targetLine = parseInt(e.currentTarget.dataset.line, 10);
+            jumpToLine(targetLine);
+          });
+        });
+      } else {
+        dom.problemList.innerHTML = `
+          <div class="problem-card">
+            <div class="problem-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+            </div>
+            <div class="problem-details">
+              <div class="problem-msg">Compilation failed. View Raw Transcript for details.</div>
+            </div>
+          </div>
+        `;
+      }
+
+      dom.diagnosticsDrawer.classList.add('open');
+      dom.tabProblems.click();
+    }
+
+    function jumpToLine(lineNum) {
+      if (!lineNum || lineNum < 1 || lineNum > editor.state.doc.lines) return;
+      const lineObj = editor.state.doc.line(lineNum);
+      editor.dispatch({
+        selection: { anchor: lineObj.from, head: lineObj.from },
+        scrollIntoView: true
+      });
+      editor.focus();
+    }
+
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    dom.tabProblems.addEventListener('click', () => {
+      dom.tabProblems.classList.add('active');
+      dom.tabRawLog.classList.remove('active');
+      dom.problemList.style.display = 'flex';
+      dom.rawLogText.style.display = 'none';
+    });
+
+    dom.tabRawLog.addEventListener('click', () => {
+      dom.tabRawLog.classList.add('active');
+      dom.tabProblems.classList.remove('active');
+      dom.problemList.style.display = 'none';
+      dom.rawLogText.style.display = 'block';
+    });
+
+    dom.drawerClose.addEventListener('click', () => dom.diagnosticsDrawer.classList.remove('open'));
+    dom.footerDiagnosticsBtn.addEventListener('click', () => dom.diagnosticsDrawer.classList.toggle('open'));
+
+    // -------------------------------------------------------------------------
+    // 11. Split Resizer & Layout Modes
+    // -------------------------------------------------------------------------
+    let isDragging = false;
+    dom.divider.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      dom.divider.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const containerRect = dom.workspace.getBoundingClientRect();
+      const sidebarWidth = dom.sidebar.classList.contains('collapsed') ? 0 : dom.sidebar.offsetWidth;
+      const totalWidth = containerRect.width - sidebarWidth;
+      const mouseX = e.clientX - containerRect.left - sidebarWidth;
+
+      const minWidth = 240;
+      const clampedX = Math.max(minWidth, Math.min(mouseX, totalWidth - minWidth));
+
+      const leftFraction = clampedX / totalWidth;
+      const rightFraction = 1 - leftFraction;
+
+      dom.editorPane.style.flex = `${leftFraction}`;
+      dom.previewPane.style.flex = `${rightFraction}`;
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        dom.divider.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        if (state.zoomMode !== 'custom') renderAllPages();
+      }
+    });
+
+    dom.layoutToggle.querySelectorAll('.segment-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const layout = btn.dataset.layout;
+        dom.layoutToggle.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.activeLayout = layout;
+
+        if (layout === 'editor') {
+          dom.editorPane.style.display = 'flex';
+          dom.editorPane.style.flex = '1';
+          dom.previewPane.style.display = 'none';
+          dom.divider.style.display = 'none';
+        } else if (layout === 'preview') {
+          dom.editorPane.style.display = 'none';
+          dom.previewPane.style.display = 'flex';
+          dom.previewPane.style.flex = '1';
+          dom.divider.style.display = 'none';
+          if (state.zoomMode !== 'custom') renderAllPages();
+        } else {
+          dom.editorPane.style.display = 'flex';
+          dom.editorPane.style.flex = '1';
+          dom.previewPane.style.display = 'flex';
+          dom.previewPane.style.flex = '1';
+          dom.divider.style.display = 'block';
+          if (state.zoomMode !== 'custom') renderAllPages();
+        }
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // 12. Streamlined Dropdowns & Engine Switcher
+    // -------------------------------------------------------------------------
+    if (dom.insertBtn) {
+      dom.insertBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.insertDropdown.classList.toggle('open');
+        dom.projectDropdown?.classList.remove('open');
+      });
+    }
+
+    if (dom.projectBtn) {
+      dom.projectBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.projectDropdown.classList.toggle('open');
+        dom.insertDropdown?.classList.remove('open');
+      });
+    }
+
+    window.addEventListener('click', () => {
+      dom.insertDropdown?.classList.remove('open');
+      dom.projectDropdown?.classList.remove('open');
+    });
+
+    if (dom.btnNavUpload) {
+      dom.btnNavUpload.addEventListener('click', () => {
+        dom.insertDropdown?.classList.remove('open');
+        dom.fileUploadInput.click();
+      });
+    }
+
+    if (dom.btnEditorPalette) {
+      dom.btnEditorPalette.addEventListener('click', () => {
+        dom.modalPalette.classList.add('open');
+        renderPaletteTiles();
+        dom.palSearch.focus();
+      });
+    }
+
+    if (dom.btnEditorTable) {
+      dom.btnEditorTable.addEventListener('click', () => {
+        renderTableBuilderGrid();
+        dom.modalTableGen.classList.add('open');
+      });
+    }
+
+    // Engine Switcher inside Project Dropdown
+    if (dom.projectDropdown) {
+      dom.projectDropdown.querySelectorAll('[data-engine]').forEach((item) => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const eng = item.dataset.engine;
+          state.currentEngine = eng;
+          const name = item.querySelector('span').textContent;
+          if (dom.currentEngineLabel) dom.currentEngineLabel.textContent = name;
+          dom.footerEngine.textContent = `${name} (Local)`;
+          dom.projectDropdown.querySelectorAll('[data-engine]').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+          dom.projectDropdown.classList.remove('open');
+          compileDocument();
+        });
+      });
+
+      // Starter Template Switcher inside Project Dropdown
+      dom.projectDropdown.querySelectorAll('[data-template]').forEach((item) => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const tplKey = item.dataset.template;
+          const scriptEl = document.getElementById(`tpl-${tplKey}`);
+          if (scriptEl) {
+            const content = scriptEl.textContent.trim();
+            state.files['main.tex'] = content;
+            switchActiveFile('main.tex');
+            scheduleSaveToStorage(true);
+            dom.projectDropdown.classList.remove('open');
+            compileDocument();
+          }
+        });
+      });
+
+      if (dom.btnResetProject) {
+        dom.btnResetProject.addEventListener('click', (e) => {
+          e.stopPropagation();
+          dom.projectDropdown.classList.remove('open');
+          if (confirm('Reset project back to default template? Any custom files and uncompiled edits will be cleared.')) {
+            localStorage.removeItem(STORAGE_KEY_FILES);
+            localStorage.removeItem(STORAGE_KEY_ACTIVE);
+            location.reload();
+          }
+        });
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 13. Visual Table Generator Modal
+    // -------------------------------------------------------------------------
+    function renderTableBuilderGrid() {
+      const rows = parseInt(dom.tblRows.value, 10) || 3;
+      const cols = parseInt(dom.tblCols.value, 10) || 3;
+      const table = dom.tableBuilderGrid;
+      table.innerHTML = '';
+
+      // Header row
+      const thead = document.createElement('thead');
+      const trHead = document.createElement('tr');
+      for (let c = 0; c < cols; c++) {
+        const th = document.createElement('th');
+        const input = document.createElement('input');
+        input.value = `Col ${c + 1}`;
+        input.dataset.cell = `h_${c}`;
+        th.appendChild(input);
+        trHead.appendChild(th);
+      }
+      thead.appendChild(trHead);
+      table.appendChild(thead);
+
+      // Body rows
+      const tbody = document.createElement('tbody');
+      for (let r = 0; r < rows; r++) {
+        const tr = document.createElement('tr');
+        for (let c = 0; c < cols; c++) {
+          const td = document.createElement('td');
+          const input = document.createElement('input');
+          input.value = `Val ${r + 1},${c + 1}`;
+          input.dataset.cell = `${r}_${c}`;
+          td.appendChild(input);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+    }
+
+    dom.btnTableGen.addEventListener('click', () => {
+      dom.insertDropdown?.classList.remove('open');
+      renderTableBuilderGrid();
+      dom.modalTableGen.classList.add('open');
+    });
+    dom.modalTableClose.addEventListener('click', () => dom.modalTableGen.classList.remove('open'));
+    dom.modalTableCancel.addEventListener('click', () => dom.modalTableGen.classList.remove('open'));
+    dom.tblRows.addEventListener('input', renderTableBuilderGrid);
+    dom.tblCols.addEventListener('input', renderTableBuilderGrid);
+
+    dom.modalTableInsert.addEventListener('click', () => {
+      const rows = parseInt(dom.tblRows.value, 10) || 3;
+      const cols = parseInt(dom.tblCols.value, 10) || 3;
+      const style = dom.tblStyle.value;
+      const caption = dom.tblCaption.value.trim();
+      const label = dom.tblLabel.value.trim();
+
+      const colAlign = 'c'.repeat(cols);
+      let latex = `\\begin{table}[h]\n\\centering\n`;
+      if (caption) latex += `\\caption{${caption}}\n`;
+      if (label) latex += `\\label{${label}}\n`;
+
+      if (style === 'booktabs') {
+        latex += `\\begin{tabular}{${colAlign}}\n\\toprule\n`;
+        // Headers
+        const headerCells = [];
+        for (let c = 0; c < cols; c++) {
+          const val = dom.tableBuilderGrid.querySelector(`input[data-cell="h_${c}"]`)?.value || `Col ${c+1}`;
+          headerCells.push(`\\textbf{${val}}`);
+        }
+        latex += headerCells.join(' & ') + ' \\\\\n\\midrule\n';
+        // Rows
+        for (let r = 0; r < rows; r++) {
+          const rowCells = [];
+          for (let c = 0; c < cols; c++) {
+            const val = dom.tableBuilderGrid.querySelector(`input[data-cell="${r}_${c}"]`)?.value || '-';
+            rowCells.push(val);
+          }
+          latex += rowCells.join(' & ') + ' \\\\\n';
+        }
+        latex += `\\bottomrule\n\\end{tabular}\n\\end{table}\n`;
+      } else {
+        const classicAlign = '|' + 'c|'.repeat(cols);
+        latex += `\\begin{tabular}{${classicAlign}}\n\\hline\n`;
+        const headerCells = [];
+        for (let c = 0; c < cols; c++) {
+          const val = dom.tableBuilderGrid.querySelector(`input[data-cell="h_${c}"]`)?.value || `Col ${c+1}`;
+          headerCells.push(`\\textbf{${val}}`);
+        }
+        latex += headerCells.join(' & ') + ' \\\\\n\\hline\n';
+        for (let r = 0; r < rows; r++) {
+          const rowCells = [];
+          for (let c = 0; c < cols; c++) {
+            const val = dom.tableBuilderGrid.querySelector(`input[data-cell="${r}_${c}"]`)?.value || '-';
+            rowCells.push(val);
+          }
+          latex += rowCells.join(' & ') + ' \\\\\n\\hline\n';
+        }
+        latex += `\\end{tabular}\n\\end{table}\n`;
+      }
+
+      const pos = editor.state.selection.main.head;
+      editor.dispatch({ changes: { from: pos, to: pos, insert: '\n' + latex + '\n' } });
+      dom.modalTableGen.classList.remove('open');
+      editor.focus();
+    });
+
+    // -------------------------------------------------------------------------
+    // 14. Interactive Symbol & CircuiTikZ Palette Modal
+    // -------------------------------------------------------------------------
+    const paletteItems = [
+      // Greek
+      { cat: 'greek', sym: 'α', code: '\\alpha', name: 'alpha' },
+      { cat: 'greek', sym: 'β', code: '\\beta', name: 'beta' },
+      { cat: 'greek', sym: 'γ', code: '\\gamma', name: 'gamma' },
+      { cat: 'greek', sym: 'δ', code: '\\delta', name: 'delta' },
+      { cat: 'greek', sym: 'ε', code: '\\epsilon', name: 'epsilon' },
+      { cat: 'greek', sym: 'θ', code: '\\theta', name: 'theta' },
+      { cat: 'greek', sym: 'λ', code: '\\lambda', name: 'lambda' },
+      { cat: 'greek', sym: 'μ', code: '\\mu', name: 'mu' },
+      { cat: 'greek', sym: 'π', code: '\\pi', name: 'pi' },
+      { cat: 'greek', sym: 'σ', code: '\\sigma', name: 'sigma' },
+      { cat: 'greek', sym: 'ω', code: '\\omega', name: 'omega' },
+      { cat: 'greek', sym: 'Δ', code: '\\Delta', name: 'Delta' },
+      { cat: 'greek', sym: 'Ω', code: '\\Omega', name: 'Omega' },
+      // Math
+      { cat: 'math', sym: '∫', code: '\\int_{a}^{b}', name: 'integral' },
+      { cat: 'math', sym: '∬', code: '\\iint', name: 'double integral' },
+      { cat: 'math', sym: '∮', code: '\\oint', name: 'contour integral' },
+      { cat: 'math', sym: '∑', code: '\\sum_{i=1}^{n}', name: 'sum' },
+      { cat: 'math', sym: '∏', code: '\\prod_{i=1}^{n}', name: 'product' },
+      { cat: 'math', sym: '√', code: '\\sqrt{x}', name: 'sqrt' },
+      { cat: 'math', sym: 'a/b', code: '\\frac{a}{b}', name: 'fraction' },
+      { cat: 'math', sym: '∂', code: '\\partial', name: 'partial' },
+      { cat: 'math', sym: '∇', code: '\\nabla', name: 'nabla' },
+      { cat: 'math', sym: '∞', code: '\\infty', name: 'infinity' },
+      { cat: 'math', sym: '≈', code: '\\approx', name: 'approx' },
+      { cat: 'math', sym: '≤', code: '\\le', name: 'less equal' },
+      { cat: 'math', sym: '≥', code: '\\ge', name: 'greater equal' },
+      { cat: 'math', sym: '±', code: '\\pm', name: 'plus minus' },
+      { cat: 'math', sym: '∈', code: '\\in', name: 'in set' },
+      { cat: 'math', sym: '∪', code: '\\cup', name: 'union' },
+      { cat: 'math', sym: '∩', code: '\\cap', name: 'intersection' },
+      { cat: 'math', sym: '→', code: '\\rightarrow', name: 'arrow' },
+      { cat: 'math', sym: '⇒', code: '\\implies', name: 'implies' },
+      // CircuiTikZ Components
+      { cat: 'circuit', sym: '⫯R⫰', code: 'to[R, l=$R$]', name: 'resistor' },
+      { cat: 'circuit', sym: '⫯C⫰', code: 'to[C, l=$C$]', name: 'capacitor' },
+      { cat: 'circuit', sym: '⫯L⫰', code: 'to[L, l=$L$]', name: 'inductor' },
+      { cat: 'circuit', sym: '⫯V⫰', code: 'to[V, v=$V_s$]', name: 'voltage source' },
+      { cat: 'circuit', sym: '⫯I⫰', code: 'to[I, i=$I_s$]', name: 'current source' },
+      { cat: 'circuit', sym: '⏚', code: 'node[ground]{}', name: 'ground' },
+      { cat: 'circuit', sym: '▷', code: 'node[op amp]{}', name: 'op amp' },
+      { cat: 'circuit', sym: '⫯D⫰', code: 'to[D, l=$D$]', name: 'diode' },
+      { cat: 'circuit', sym: '⫯S⫰', code: 'to[switch]', name: 'switch' },
+      // Presets
+      {
+        cat: 'presets',
+        sym: '⚡ RLC',
+        code: `\\begin{center}\n\\begin{circuitikz}[american]\n  \\draw (0,0) to[V, v=$V_s$] (0,2)\n              to[R, l=$R$] (2,2)\n              to[C, l=$C$] (2,0) -- (0,0);\n\\end{circuitikz}\n\\end{center}`,
+        name: 'rc filter schematic'
+      },
+      {
+        cat: 'presets',
+        sym: '⚡ OpAmp',
+        code: `\\begin{center}\n\\begin{circuitikz}[american]\n  \\draw (0,0) node[op amp] (opamp) {}\n  (opamp.-) -- ++(-1,0) to[R, l=$R_1$] ++(-2,0)\n  (opamp.-) -- ++(0,1) to[R, l=$R_f$] ++(2,0) -| (opamp.out)\n  (opamp.+) node[ground] {}\n  (opamp.out) -- ++(1,0);\n\\end{circuitikz}\n\\end{center}`,
+        name: 'inverting amplifier'
+      }
+    ];
+
+    let currentPalCat = 'math';
+
+    function renderPaletteTiles() {
+      const q = dom.palSearch.value.toLowerCase().trim();
+      const grid = dom.paletteGrid;
+      grid.innerHTML = '';
+
+      const filtered = paletteItems.filter(item => {
+        const matchesCat = currentPalCat === 'all' || item.cat === currentPalCat;
+        const matchesQuery = !q || item.name.includes(q) || item.code.includes(q) || item.sym.includes(q);
+        return matchesCat && matchesQuery;
+      });
+
+      filtered.forEach(item => {
+        const tile = document.createElement('div');
+        tile.className = 'palette-tile';
+        tile.innerHTML = `
+          <span class="palette-symbol">${item.sym}</span>
+          <span class="palette-code">${item.code}</span>
+        `;
+        tile.addEventListener('click', () => {
+          const pos = editor.state.selection.main.head;
+          editor.dispatch({ changes: { from: pos, to: pos, insert: item.code + ' ' } });
+          editor.focus();
+        });
+        grid.appendChild(tile);
+      });
+    }
+
+    dom.btnPalette.addEventListener('click', () => {
+      dom.insertDropdown?.classList.remove('open');
+      dom.modalPalette.classList.add('open');
+      renderPaletteTiles();
+      dom.palSearch.focus();
+    });
+    dom.modalPaletteClose.addEventListener('click', () => dom.modalPalette.classList.remove('open'));
+    dom.modalPaletteDone.addEventListener('click', () => dom.modalPalette.classList.remove('open'));
+    dom.palSearch.addEventListener('input', renderPaletteTiles);
+
+    const palTabs = {
+      'pal-tab-math': 'math',
+      'pal-tab-greek': 'greek',
+      'pal-tab-circuit': 'circuit',
+      'pal-tab-presets': 'presets'
+    };
+    Object.keys(palTabs).forEach(tabId => {
+      const btn = document.getElementById(tabId);
+      if (btn) {
+        btn.addEventListener('click', () => {
+          Object.keys(palTabs).forEach(id => document.getElementById(id)?.classList.remove('active'));
+          btn.classList.add('active');
+          currentPalCat = palTabs[tabId];
+          renderPaletteTiles();
+        });
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // 15. Academic Word Count Modal
+    // -------------------------------------------------------------------------
+    dom.btnWordCount.addEventListener('click', async () => {
+      dom.projectDropdown?.classList.remove('open');
+      try {
+        const fullSource = Object.values(state.files)
+          .filter(c => typeof c === 'string' && !c.startsWith('data:'))
+          .join('\n\n');
+
+        const response = await fetch('/api/wordcount', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: fullSource })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          dom.wcWords.textContent = data.words.toLocaleString();
+          dom.wcMath.textContent = data.mathFormulas.toLocaleString();
+          dom.wcPages.textContent = state.totalPages;
+          dom.wcChars.textContent = data.characters.toLocaleString();
+          dom.wcFigures.textContent = data.figures.toLocaleString();
+          dom.wcTables.textContent = data.tables.toLocaleString();
+          dom.wcReadTime.textContent = `${Math.ceil(data.words / 180)} min`;
+          dom.modalWordCount.classList.add('open');
+        }
+      } catch (err) {
+        console.error('Wordcount error:', err);
+      }
+    });
+    dom.modalWcClose.addEventListener('click', () => dom.modalWordCount.classList.remove('open'));
+    dom.modalWcOk.addEventListener('click', () => dom.modalWordCount.classList.remove('open'));
+
+    // -------------------------------------------------------------------------
+    // 16. Version Snapshots & Local History
+    // -------------------------------------------------------------------------
+    function getSnapshots() {
+      try {
+        return JSON.parse(localStorage.getItem('texstudio_snapshots') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function saveSnapshot(note = 'Manual Snapshot') {
+      const snapshots = getSnapshots();
+      const newSnap = {
+        id: Date.now(),
+        time: new Date().toLocaleTimeString(),
+        date: new Date().toLocaleDateString(),
+        note: note,
+        files: JSON.parse(JSON.stringify(state.files))
+      };
+      snapshots.unshift(newSnap);
+      if (snapshots.length > 30) snapshots.pop();
+      localStorage.setItem('texstudio_snapshots', JSON.stringify(snapshots));
+      renderSnapshots();
+    }
+
+    function renderSnapshots() {
+      const snapshots = getSnapshots();
+      const list = dom.snapshotList;
+      list.innerHTML = '';
+
+      if (snapshots.length === 0) {
+        list.innerHTML = '<div style="font-size: 11px; color: var(--text-dim); text-align: center; padding: 20px;">No saved snapshots yet.</div>';
+        return;
+      }
+
+      snapshots.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'snapshot-card';
+        card.innerHTML = `
+          <div class="snapshot-time">${s.date} ${s.time}</div>
+          <div class="snapshot-note">${escapeHtml(s.note)}</div>
+          <div class="snapshot-meta">${Object.keys(s.files).length} project files</div>
+          <div class="snapshot-actions">
+            <button class="snapshot-btn btn-restore" data-id="${s.id}">Restore</button>
+          </div>
+        `;
+        card.querySelector('.btn-restore').addEventListener('click', () => {
+          if (confirm(`Restore snapshot "${s.note}" from ${s.time}?`)) {
+            state.files = JSON.parse(JSON.stringify(s.files));
+            switchActiveFile('main.tex');
+            compileDocument();
+            dom.drawerHistory.classList.remove('open');
+          }
+        });
+        list.appendChild(card);
+      });
+    }
+
+    dom.btnHistory.addEventListener('click', () => {
+      dom.projectDropdown?.classList.remove('open');
+      renderSnapshots();
+      dom.drawerHistory.classList.add('open');
+    });
+    dom.historyCloseBtn.addEventListener('click', () => dom.drawerHistory.classList.remove('open'));
+    dom.btnTakeSnapshot.addEventListener('click', () => {
+      const note = dom.snapshotNoteInput.value.trim() || 'Manual Snapshot';
+      saveSnapshot(note);
+      dom.snapshotNoteInput.value = '';
+    });
+
+    // -------------------------------------------------------------------------
+    // 17. One-Click ZIP Export
+    // -------------------------------------------------------------------------
+    dom.btnExportZip.addEventListener('click', async () => {
+      dom.projectDropdown?.classList.remove('open');
+      // Ensure current editor text is stored
+      if (typeof state.files[state.activeFile] === 'string' && !state.files[state.activeFile].startsWith('data:')) {
+        state.files[state.activeFile] = editor.state.doc.toString();
+      }
+
+      setAppStatus('compiling', 'Zipping Project...');
+      try {
+        const response = await fetch('/api/export-zip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: state.files, projectName: 'latex-project' })
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'latex-project.zip';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setAppStatus('ready', 'ZIP Downloaded');
+        }
+      } catch (err) {
+        console.error('Export ZIP error:', err);
+        setAppStatus('error', 'ZIP Failed');
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // 18. Academic AI Assistant Drawer
+    // -------------------------------------------------------------------------
+    dom.btnAiDrawer.addEventListener('click', () => dom.drawerAi.classList.add('open'));
+    dom.aiCloseBtn.addEventListener('click', () => dom.drawerAi.classList.remove('open'));
+
+    // Quick Chips
+    document.getElementById('ai-chip-fix-error').addEventListener('click', () => {
+      if (state.parsedProblems.length > 0) {
+        const prob = state.parsedProblems[0];
+        dom.aiPromptInput.value = `I got this LaTeX compilation error:\n"${prob.msg}"\nContext: ${prob.context || 'None'}\n\nPlease identify the cause and provide the exact fixed LaTeX code.`;
+      } else {
+        dom.aiPromptInput.value = 'Review my LaTeX document for potential compilation warnings, unclosed tags, or TikZ syntax issues.';
+      }
+    });
+
+    document.getElementById('ai-chip-tone').addEventListener('click', () => {
+      const sel = editor.state.doc.sliceString(editor.state.selection.main.from, editor.state.selection.main.to);
+      const textToRefine = sel || 'Enter paragraph here...';
+      dom.aiPromptInput.value = `Please rewrite the following excerpt with formal academic tone suitable for an IEEE/ACM paper:\n\n"${textToRefine}"`;
+    });
+
+    document.getElementById('ai-chip-bib').addEventListener('click', () => {
+      dom.aiPromptInput.value = 'Generate a complete BibTeX citation entry for the following paper title or DOI:\n\n';
+    });
+
+    document.getElementById('ai-chip-eq').addEventListener('click', () => {
+      const sel = editor.state.doc.sliceString(editor.state.selection.main.from, editor.state.selection.main.to);
+      dom.aiPromptInput.value = `Explain the mathematical notation and structure of this LaTeX equation:\n\n${sel || '\\[ ... \\]'}`;
+    });
+
+    dom.aiCopyPromptBtn.addEventListener('click', () => {
+      const p = dom.aiPromptInput.value.trim();
+      if (!p) return;
+      navigator.clipboard.writeText(p);
+      alert('Prompt copied to clipboard! You can paste it into Gemini, ChatGPT, or Claude.');
+    });
+
+    // -------------------------------------------------------------------------
+    // Persist AI Settings in Client's LocalStorage (Zero repo tracking)
+    // -------------------------------------------------------------------------
+    const STORAGE_AI_PROVIDER = 'texstudio_ai_provider';
+    const STORAGE_AI_GEMINI   = 'texstudio_gemini_api_key';
+    const STORAGE_AI_ENDPOINT = 'texstudio_ai_endpoint';
+    const STORAGE_AI_KEY      = 'texstudio_ai_custom_key';
+
+    function syncAiProviderUi() {
+      const p = dom.aiProviderSelect ? dom.aiProviderSelect.value : 'gemini';
+      if (dom.groupGeminiKey) dom.groupGeminiKey.style.display = (p === 'gemini') ? 'block' : 'none';
+      if (dom.groupEndpoint) dom.groupEndpoint.style.display = (p === 'gemini') ? 'none' : 'block';
+      if (dom.groupCustomKey) dom.groupCustomKey.style.display = (p === 'openai') ? 'block' : 'none';
+
+      if (dom.aiModelStatus) {
+        if (p === 'gemini') dom.aiModelStatus.textContent = 'Google Gemini (Cloud)';
+        else if (p === 'lmstudio') dom.aiModelStatus.textContent = 'LM Studio (Localhost:1234)';
+        else if (p === 'ollama') dom.aiModelStatus.textContent = 'Ollama (Localhost:11434)';
+        else if (p === 'openai') dom.aiModelStatus.textContent = 'OpenAI / Claude Compatible';
+      }
+
+      if (dom.endpointHint) {
+        if (p === 'lmstudio') dom.endpointHint.textContent = 'Default: http://localhost:1234/v1';
+        else if (p === 'ollama') dom.endpointHint.textContent = 'Default: http://localhost:11434';
+        else dom.endpointHint.textContent = 'e.g. https://api.openai.com/v1';
+      }
+
+      // Pre-fill default endpoint if empty
+      if (dom.aiEndpointInput && !dom.aiEndpointInput.value.trim()) {
+        if (p === 'lmstudio') dom.aiEndpointInput.placeholder = 'http://localhost:1234/v1';
+        else if (p === 'ollama') dom.aiEndpointInput.placeholder = 'http://localhost:11434';
+        else if (p === 'openai') dom.aiEndpointInput.placeholder = 'https://api.openai.com/v1';
+      }
+    }
+
+    if (dom.aiProviderSelect) {
+      const savedProvider = localStorage.getItem(STORAGE_AI_PROVIDER);
+      if (savedProvider) dom.aiProviderSelect.value = savedProvider;
+      dom.aiProviderSelect.addEventListener('change', () => {
+        localStorage.setItem(STORAGE_AI_PROVIDER, dom.aiProviderSelect.value);
+        syncAiProviderUi();
+      });
+    }
+
+    const savedGeminiKey = localStorage.getItem(STORAGE_AI_GEMINI);
+    if (savedGeminiKey && dom.aiGeminiKey) {
+      dom.aiGeminiKey.value = savedGeminiKey;
+      if (dom.geminiKeyStatus) {
+        dom.geminiKeyStatus.textContent = '✓ Configured';
+        dom.geminiKeyStatus.style.color = 'var(--emerald)';
+      }
+    }
+
+    const savedEndpoint = localStorage.getItem(STORAGE_AI_ENDPOINT);
+    if (savedEndpoint && dom.aiEndpointInput) dom.aiEndpointInput.value = savedEndpoint;
+
+    const savedCustomKey = localStorage.getItem(STORAGE_AI_KEY);
+    if (savedCustomKey && dom.aiCustomKey) dom.aiCustomKey.value = savedCustomKey;
+
+    if (dom.aiGeminiKey) {
+      dom.aiGeminiKey.addEventListener('input', () => {
+        const val = dom.aiGeminiKey.value.trim();
+        if (val) {
+          localStorage.setItem(STORAGE_AI_GEMINI, val);
+          if (dom.geminiKeyStatus) {
+            dom.geminiKeyStatus.textContent = '✓ Configured';
+            dom.geminiKeyStatus.style.color = 'var(--emerald)';
+          }
+        } else {
+          localStorage.removeItem(STORAGE_AI_GEMINI);
+          if (dom.geminiKeyStatus) {
+            dom.geminiKeyStatus.textContent = 'Optional';
+            dom.geminiKeyStatus.style.color = 'var(--text-dim)';
+          }
+        }
+      });
+    }
+
+    if (dom.aiEndpointInput) {
+      dom.aiEndpointInput.addEventListener('input', () => {
+        localStorage.setItem(STORAGE_AI_ENDPOINT, dom.aiEndpointInput.value.trim());
+      });
+    }
+
+    if (dom.aiCustomKey) {
+      dom.aiCustomKey.addEventListener('input', () => {
+        localStorage.setItem(STORAGE_AI_KEY, dom.aiCustomKey.value.trim());
+      });
+    }
+
+    syncAiProviderUi();
+
+    let lastAiExtractedSnippet = '';
+
+    dom.aiExecuteBtn.addEventListener('click', async () => {
+      const prompt = dom.aiPromptInput.value.trim();
+      const provider = dom.aiProviderSelect ? dom.aiProviderSelect.value : 'gemini';
+      const geminiKey = (dom.aiGeminiKey ? dom.aiGeminiKey.value.trim() : '') || localStorage.getItem(STORAGE_AI_GEMINI) || '';
+      let endpoint = (dom.aiEndpointInput ? dom.aiEndpointInput.value.trim() : '') || localStorage.getItem(STORAGE_AI_ENDPOINT) || '';
+      const customKey = (dom.aiCustomKey ? dom.aiCustomKey.value.trim() : '') || localStorage.getItem(STORAGE_AI_KEY) || '';
+
+      if (!prompt) return;
+
+      dom.aiResponseBox.textContent = `Connecting to ${provider.toUpperCase()} assistant...`;
+      if (dom.aiInsertCodeBtn) dom.aiInsertCodeBtn.style.display = 'none';
+
+      // 1. Google Gemini Provider
+      if (provider === 'gemini') {
+        if (!geminiKey) {
+          dom.aiResponseBox.textContent = `Please enter your Google Gemini API key above.\n(Get a free key from: https://aistudio.google.com/app/apikey)`;
+          return;
+        }
+        localStorage.setItem(STORAGE_AI_GEMINI, geminiKey);
+        const models = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro'];
+        let success = false;
+
+        for (const model of models) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`;
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: {
+                  parts: [{ text: 'You are an expert academic LaTeX typesetting assistant for TeXStudio. Provide concise, production-ready LaTeX snippets, fixes, formulas, or academic phrasing. Wrap code in ```latex ``` blocks.' }]
+                }
+              })
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
+                const answerText = data.candidates[0].content.parts[0].text;
+                dom.aiResponseBox.textContent = answerText;
+
+                const codeMatch = answerText.match(/```(?:latex|tex)?\s*([\s\S]*?)```/i);
+                if (codeMatch && codeMatch[1]) {
+                  lastAiExtractedSnippet = codeMatch[1].trim();
+                  if (dom.aiInsertCodeBtn) dom.aiInsertCodeBtn.style.display = 'inline-flex';
+                }
+
+                if (dom.geminiKeyStatus) {
+                  dom.geminiKeyStatus.textContent = `✓ ${model}`;
+                  dom.geminiKeyStatus.style.color = 'var(--emerald)';
+                }
+                success = true;
+                break;
+              }
+            } else if (res.status === 404 || res.status === 503) {
+              console.warn(`Model ${model} returned ${res.status}, trying fallback...`);
+              continue;
+            } else {
+              const errData = await res.json();
+              dom.aiResponseBox.textContent = `Gemini API Error (${res.status}): ${errData.error ? errData.error.message : JSON.stringify(errData)}`;
+              success = true;
+              break;
+            }
+          } catch (netErr) {
+            console.warn(`Network error with ${model}:`, netErr);
+          }
+        }
+        if (success) return;
+      }
+
+      // 2. LM Studio / OpenAI-Compatible Provider
+      if (provider === 'lmstudio' || provider === 'openai') {
+        if (!endpoint) {
+          endpoint = (provider === 'lmstudio') ? 'http://localhost:1234/v1' : 'https://api.openai.com/v1';
+        }
+        let targetUrl = endpoint.trim().replace(/\/+$/, '');
+        if (!targetUrl.endsWith('/chat/completions')) {
+          targetUrl = targetUrl.endsWith('/v1') ? `${targetUrl}/chat/completions` : `${targetUrl}/v1/chat/completions`;
+        }
+
+        try {
+          const headers = { 'Content-Type': 'application/json' };
+          if (customKey) headers['Authorization'] = `Bearer ${customKey}`;
+
+          const res = await fetch(targetUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              messages: [
+                { role: 'system', content: 'You are an expert academic LaTeX typesetting assistant for TeXStudio. Provide concise, production-ready LaTeX snippets, fixes, formulas, or academic phrasing. Wrap code in ```latex ``` blocks.' },
+                { role: 'user', content: prompt }
+              ],
+              temperature: 0.2
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const answerText = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : JSON.stringify(data, null, 2);
+            dom.aiResponseBox.textContent = answerText;
+
+            const codeMatch = answerText.match(/```(?:latex|tex)?\s*([\s\S]*?)```/i);
+            if (codeMatch && codeMatch[1]) {
+              lastAiExtractedSnippet = codeMatch[1].trim();
+              if (dom.aiInsertCodeBtn) dom.aiInsertCodeBtn.style.display = 'inline-flex';
+            }
+            return;
+          } else {
+            const errText = await res.text();
+            dom.aiResponseBox.textContent = `HTTP ${res.status} Error from ${targetUrl}:\n${errText}\n\nTip: For LM Studio, make sure the local server is started (port 1234) and CORS is enabled in LM Studio settings.`;
+            return;
+          }
+        } catch (err) {
+          dom.aiResponseBox.textContent = `Connection failed to ${targetUrl}:\n${err.message}\n\nMake sure LM Studio local server is running on http://localhost:1234 or verify your endpoint.`;
+          return;
+        }
+      }
+
+      // 3. Ollama Provider
+      if (provider === 'ollama') {
+        if (!endpoint) endpoint = 'http://localhost:11434';
+        let targetUrl = endpoint.trim().replace(/\/+$/, '');
+        if (!targetUrl.endsWith('/api/generate') && !targetUrl.endsWith('/v1/chat/completions')) {
+          targetUrl = `${targetUrl}/api/generate`;
+        }
+
+        try {
+          const res = await fetch(targetUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: `You are an expert LaTeX assistant. Provide concise LaTeX solutions. Prompt: ${prompt}`,
+              model: 'llama3',
+              stream: false
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const answerText = data.response || JSON.stringify(data, null, 2);
+            dom.aiResponseBox.textContent = answerText;
+
+            const codeMatch = answerText.match(/```(?:latex|tex)?\s*([\s\S]*?)```/i);
+            if (codeMatch && codeMatch[1]) {
+              lastAiExtractedSnippet = codeMatch[1].trim();
+              if (dom.aiInsertCodeBtn) dom.aiInsertCodeBtn.style.display = 'inline-flex';
+            }
+            return;
+          } else {
+            const errText = await res.text();
+            dom.aiResponseBox.textContent = `Ollama Error (${res.status}): ${errText}`;
+            return;
+          }
+        } catch (err) {
+          dom.aiResponseBox.textContent = `Connection failed to Ollama (${targetUrl}):\n${err.message}\n\nMake sure Ollama is running ('ollama serve') with CORS enabled ('OLLAMA_ORIGINS="*"').`;
+          return;
+        }
+      }
+
+      // 4. Offline Fallback
+      dom.aiResponseBox.textContent = `[Offline LaTeX Assistant]\n\nBased on LaTeX patterns:\n- Ensure matching \\begin{...} and \\end{...} tags.\n- In CircuiTikZ, remember coordinates must end with a semicolon (;) on the \\draw command.\n- For citations, verify the key matches references.bib.`;
+    });
+
+    if (dom.aiInsertCodeBtn) {
+      dom.aiInsertCodeBtn.addEventListener('click', () => {
+        if (!lastAiExtractedSnippet) return;
+        const ed = window.editor || editor;
+        if (!ed) return;
+        const pos = ed.state.selection.main.head;
+        ed.dispatch({
+          changes: { from: pos, to: pos, insert: `\n${lastAiExtractedSnippet}\n` }
+        });
+        ed.focus();
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // 19. Editor Actions (Format & Clear)
+    // -------------------------------------------------------------------------
+    dom.btnClear.addEventListener('click', () => {
+      if (confirm(`Clear content of '${state.activeFile}'?`)) {
+        editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: '' } });
+        editor.focus();
+      }
+    });
+
+    dom.btnFormat.addEventListener('click', () => {
+      let code = editor.state.doc.toString();
+      code = code.replace(/\n{3,}/g, '\n\n');
+      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: code } });
+    });
+
+    // -------------------------------------------------------------------------
+    // 20. Auto-Discovery of Local LaTeX Distribution
+    // -------------------------------------------------------------------------
+    async function checkSystemCapabilities() {
+      try {
+        const res = await fetch('/api/system');
+        if (res.ok) {
+          const sys = await res.json();
+          state.systemInfo = sys;
+          console.log('[System Discovery]', sys);
+
+          // Update badges in engine dropdown
+          if (sys.engines) {
+            const xeBadge = document.getElementById('badge-xelatex');
+            const luaBadge = document.getElementById('badge-lualatex');
+            if (xeBadge) xeBadge.textContent = sys.engines.xelatex ? 'Available' : 'Missing';
+            if (luaBadge) luaBadge.textContent = sys.engines.lualatex ? 'Available' : 'Missing';
+          }
+        }
+      } catch (e) {
+        console.warn('System health discovery error:', e);
+      }
+    }
+    checkSystemCapabilities();
+
+    // -------------------------------------------------------------------------
+    // 21. Initial Auto-compile on Load
+    // -------------------------------------------------------------------------
+    editor.focus();
+    compileDocument();
+
+    console.log('%c TeXStudio Local Ready — Obsidian Engine Activated ', 'background: #10b981; color: #090a0f; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+  </script>
+</body>
+</html>

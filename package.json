@@ -1,0 +1,28 @@
+{
+  "name": "latex-editor",
+  "version": "1.0.0",
+  "description": "High-performance personal LaTeX workstation with offline vector PDF preview and local AI assistant",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "esbuild src/editor.js --bundle --minify --format=iife --outfile=public/cm.bundle.js",
+    "test": "node scripts/smoke-test.js"
+  },
+  "dependencies": {
+    "@codemirror/legacy-modes": "^6.5.4",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "archiver": "^8.0.0",
+    "codemirror": "^6.0.2",
+    "esbuild": "^0.28.2",
+    "express": "^4.21.0",
+    "pdfjs-dist": "^3.11.174"
+  },
+  "keywords": [
+    "latex",
+    "editor",
+    "workstation",
+    "pdflatex"
+  ],
+  "license": "MIT"
+}
