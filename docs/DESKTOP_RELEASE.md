@@ -17,4 +17,8 @@ macOS Intel and Apple Silicon builds run in GitHub Actions, including a packaged
 
 The first Apple Silicon CI startup check caught missing project API routes in the Git repository: an unanchored `projects/` ignore rule also excluded `src/app/api/projects/`. Version 2.0.1 anchors the private data directory ignore rule and tracks the project/snapshot API source, so fresh checkouts contain the routes tested locally.
 
+The corrected [2.0.1 release workflow](https://github.com/helloSayanDeb/latex-editor/actions/runs/38086418929) succeeded on Windows x64, Intel macOS and Apple Silicon macOS and published all three installers with SHA-256 checksums. Each packaged app passed startup, project storage, static asset, spelling dictionary and Git initialization checks in a fresh checkout.
+
+The actual published Windows 2.0.1 installer was subsequently downloaded and checksum-verified by `install.ps1`, installed into an isolated folder and launched. Its bundled runtime passed native pdfLaTeX/XeLaTeX/LuaLaTeX PDF compilation, project storage, static assets, spelling and Git initialization checks. Temporary test installation shortcuts and registration were removed afterward; test data and build artifacts remain under ignored `dist-desktop/`.
+
 The distribution adds no hosted compilation backend and no mobile-native app. Existing feature limitations in FEATURE_AUDIT.md still apply. PDF.js evaluation is disabled following the upstream workaround for CVE-2024-4367; this release does not claim a complete dependency-security audit or upgrade all legacy dependencies.
