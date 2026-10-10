@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Environment & Secrets
 .env
@@ -45,3 +44,16 @@ Thumbs.db
 .vscode/
 .idea/
 .history/
+
+# Next.js build output and local workspace data
+.next/
+out/
+projects/
+*.tsbuildinfo
+
+# Local verification artifacts
+/docs/*.png
+/docs/*.pdf
+/docs/*results.json
+/docs/eslint-audit.json
+/docs/*.txt

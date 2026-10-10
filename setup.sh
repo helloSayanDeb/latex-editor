@@ -39,7 +39,7 @@ if ! command -v node >/dev/null 2>&1; then
     elif command -v pacman >/dev/null 2>&1; then
         echo -e "    Install on Arch Linux: ${YELLOW}sudo pacman -S nodejs npm${NC}"
     else
-        echo -e "    Please install Node.js (v18+) from https://nodejs.org/${NC}"
+        echo -e "    Please install Node.js (v20.9+) from https://nodejs.org/${NC}"
     fi
     exit 1
 fi
@@ -82,11 +82,11 @@ npm install --no-audit --no-fund
 echo -e "${GREEN}  ✓ Dependencies installed.${NC}"
 
 # -----------------------------------------------------------------------------
-# 4. Build Bundles
+# 4. Build Next.js Production Bundle
 # -----------------------------------------------------------------------------
-echo -e "${YELLOW}[4/5] Building Frontend Assets...${NC}"
+echo -e "${YELLOW}[4/5] Building Next.js Production Application...${NC}"
 npm run build
-echo -e "${GREEN}  ✓ Bundle public/cm.bundle.js built.${NC}"
+echo -e "${GREEN}  ✓ Next.js application built.${NC}"
 
 # -----------------------------------------------------------------------------
 # 5. Run Verification Smoke Test Suite
@@ -112,4 +112,4 @@ elif command -v xdg-open >/dev/null 2>&1; then
     xdg-open "http://localhost:2303" &
 fi
 
-exec node server.js
+exec npm start

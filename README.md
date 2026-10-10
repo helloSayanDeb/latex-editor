@@ -1,279 +1,85 @@
-# 🚀 TeXStudio Local — High-Performance Personal LaTeX Workstation
+# TeXStudio Local
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-indigo.svg)](https://github.com/helloSayanDeb/latex-editor)
-[![LaTeX Distribution](https://img.shields.io/badge/LaTeX-MiKTeX%20%7C%20TeX%20Live-10b981.svg)](https://miktex.org)
-[![Privacy](https://img.shields.io/badge/Privacy-100%25%20Offline%20%26%20Local-6366f1.svg)](https://github.com/helloSayanDeb/latex-editor)
-[![Docker](https://img.shields.io/badge/Docker-Not%20Required-blue.svg)](https://github.com/helloSayanDeb/latex-editor)
-[![Node.js Version](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
+A personal LaTeX workspace with a CodeMirror editor, PDF preview and TeX Sage assistant. Runs at `http://localhost:2303` using a local Node.js server and your installed TeX distribution.
 
-> **A blazing-fast, lightweight personal LaTeX workstation that runs 100% on your local hardware.**
-> Compile heavy academic papers, complex mathematical formulas, and CircuiTikZ analog schematics in **sub-second time** with pixel-perfect custom HTML5 Canvas rendering. **Zero monthly subscriptions, zero container bloat, and total privacy.**
+## Requirements
 
----
+- Node.js **20.9 or newer** and npm.
+- MiKTeX or TeX Live with the engines you want to use: `pdflatex`, `xelatex`, `lualatex`.
+- Packages and fonts required by your documents. Selecting an engine does not install missing fonts or repair invalid LaTeX.
 
-## ⚡ 1-Minute Quick Start
+## Start
 
-Anyone on the internet can clone this repository and get the entire environment, dependencies, automated smoke tests, and editor running with a **single command**.
-
-### 🪟 Windows (PowerShell)
-Open PowerShell and run:
-```powershell
+```sh
 git clone https://github.com/helloSayanDeb/latex-editor.git
 cd latex-editor
-.\setup.ps1
+npm install
+npm run build
+npm start
 ```
 
-> **What `setup.ps1` does automatically:**
-> 1. Verifies your Node.js runtime (or auto-installs Node.js LTS via `winget` if missing).
-> 2. Verifies your LaTeX compiler (`pdflatex`, `xelatex`, `lualatex`). If missing, auto-installs MiKTeX silently via `winget`.
-> 3. Installs project dependencies (`npm install`).
-> 4. Builds the CodeMirror 6 unified editor bundle (`npm run build`).
-> 5. Runs the automated verification suite (`node scripts/smoke-test.js`).
-> 6. Launches the web app at `http://localhost:2303` and opens your default browser!
+Open `http://localhost:2303`. For development, use `npm run dev`.
 
----
+Windows users can run `./setup.ps1`; macOS/Linux users can run `./setup.sh`. These scripts install dependencies, build the application, run environment checks and launch it. Inspect them before running; distribution installation may require administrator access and internet connectivity.
 
-### 🍎 macOS & 🐧 Linux (Bash)
-Open your terminal and run:
-```bash
-git clone https://github.com/helloSayanDeb/latex-editor.git
-cd latex-editor
-chmod +x setup.sh
-./setup.sh
-```
+## Features
 
----
+- Native pdfLaTeX, XeLaTeX and LuaLaTeX compilation with bibliography passes and compiler diagnostics.
+- CodeMirror 6 syntax highlighting, command completion, find/replace, document outline, local English spelling and two-space LaTeX formatting.
+- PDF.js parsing worker and Canvas 2D preview, nearby-page rendering, retained canvases during zoom, fit controls, dark paper and PDF download. Recompiling preserves the visible page and scroll position. No additional WebGL compositing pass.
+- Ctrl/Command-click PDF to jump to source using SyncTeX. Mapping accuracy depends on the boxes recorded by TeX.
+- Multiple projects and files, debounced ordered autosaves, project deletion, submission ZIP export, compile snapshots and manual snapshots.
+- Templates, a table generator and math/symbol tools.
+- TeX Sage beside the editor/PDF on wide workspaces, or in a slide-over on narrower ones. Resizable desktop panel with remembered width.
+- A mobile welcome recommending tablet/desktop and landscape orientation. Continue here is remembered in browser storage until cleared.
 
-## 💎 Workstation Architecture & Capabilities
+## TeX Sage
 
-| Capability | Specification | Description |
-| :--- | :---: | :--- |
-| **Execution Environment** | 🔒 **100% Localhost** | All computation runs directly on your machine. Zero cloud dependency, zero data leaks. |
-| **Hardware Compilation** | ⚡ **Sub-Second Speed** | Compiles heavy math, matrices, and CircuiTikZ schematics in under ~0.6s. |
-| **TeX Engines Supported** | 🛠️ **Multi-Engine** | Native runtime switching between **pdfLaTeX**, **XeLaTeX**, and **LuaLaTeX**. |
-| **PDF Rendering** | 🎯 **Vector Canvas** | High-DPI continuous multi-page HTML5 canvas with page jumping and dark paper mode. |
-| **Project Architecture** | 📂 **Multi-File Tree** | Full project hierarchy support with drag-and-drop graphics management. |
-| **Visual Table Studio** | 📊 **GUI Generator** | Interactive preview grid supporting both publication-grade **Booktabs** and classic styles. |
-| **Symbol & Circuit Palette**| 🎨 **Click-to-Insert** | One-click insertion for Greek alphabet, calculus symbols, and analog circuit elements. |
-| **Document Navigation** | 📑 **Dynamic Outline** | Automated document outline parser with synchronized viewport jumping. |
-| **Intelligent Autocomplete**| 🔍 **Context-Aware** | Smart completion for `\cite{}` from `.bib` files, `\ref{}` from `\label{}`, and LaTeX commands. |
-| **Version History** | 🕒 **Local Snapshots** | Automated compilation snapshots and custom revisions with 1-click restore. |
-| **Academic Analysis** | 📈 **Deep Word Count** | Dedicated parser for body words, mathematical equations, figures, and tables. |
-| **Publishing & Submission** | 📦 **ZIP Export** | Instant packaging ready for arXiv, IEEE, ACM, or Springer submissions. |
-| **AI Academic Assistant** | 🤖 **Universal Engine** | Seamless integration with **LM Studio**, **Ollama**, **Gemini**, and **OpenAI**. |
+Supports Google Gemini, OpenAI, LM Studio and Ollama. Configure the provider in assistant settings.
 
----
+- **LM Studio:** start its local server, load a chat model, then choose the detected model. Default endpoint: `http://localhost:1234/v1`.
+- **Ollama:** run the local server with an available chat model, then choose it from the detected list. Default endpoint: `http://localhost:11434`.
+- **Gemini/OpenAI:** supply your API key and model. Keys remain in the tab unless encrypted with your optional master password. Local providers need no API key or master password.
 
-## 🤖 Universal AI Academic Assistant Guide
+Recent conversation turns accompany follow-ups. Replies render Markdown, code blocks and math. Ask mode keeps answers in chat. Edit source mode automatically previews a single LaTeX code block inline, with removed code in red, proposed code in green and Accept/Reject beneath it. Select a snippet to constrain the request; follow-ups retain the last accepted edit range. Unchanged outer lines are trimmed even when the model returns a complete document.
 
-TeXStudio Local includes a built-in **AI Academic Assistant Drawer** designed specifically for scientific writing and LaTeX troubleshooting. You can connect it to **100% offline local LLMs** or direct **cloud APIs** with zero telemetry.
+Accept applies one undoable change. Reject/Escape discards the preview. **Compile accepts a pending edit and compiles the updated source**, removing its Reject controls. A subsequent edit request also finalizes the previous pending proposal before refining it. Successful compilations create snapshots. Multiple returned code blocks have individual preview actions. Quick prompts use circular previous/next buttons.
 
-Click the **AI** icon in the toolbar or navigation menu to open the assistant.
+LM Studio has been tested live locally. Cloud providers and Ollama have request/response contract tests; those do not guarantee access for every account or model. Model context limits and model-generated code can still require shorter conversations or manual correction.
 
-```
-┌────────────────────────────────────────────────────────┐
-│  AI Engine Provider:                                   │
-│  [ Google Gemini / LM Studio / Ollama / OpenAI    ▼ ]  │
-│                                                        │
-│  Prompt: [ Fix LaTeX Error / Academic Tone / BibTeX ]  │
-│  [ Ask AI ]  ─────────────► [ Insert at Cursor ]       │
-└────────────────────────────────────────────────────────┘
-```
-
----
-
-### Option 1: 🖥️ LM Studio (100% Free, Private & Offline)
-Run cutting-edge open-source LLMs locally on your GPU/CPU with **zero internet connection** and **zero data leaks**.
-
-#### Step 1: Download & Install LM Studio
-1. Download LM Studio for Windows, macOS, or Linux from [https://lmstudio.ai](https://lmstudio.ai).
-2. Install and launch the application.
-
-#### Step 2: Download an Academic / Coding Model
-Inside LM Studio, search for any of the following high-performing models:
-- **`Qwen2.5-Coder-7B-Instruct`** *(Recommended: Exceptional LaTeX, math, and TikZ generation)*
-- **`DeepSeek-R1-Distill-Qwen-7B`** *(Recommended: Deep mathematical reasoning)*
-- **`Llama-3.2-3B-Instruct`** *(Lightweight for laptops with 8 GB RAM)*
-- **`Mistral-7B-Instruct-v0.3`**
-
-Click **Download** on the GGUF quantization (e.g., `Q4_K_M` or `Q5_K_M`).
-
-#### Step 3: Start the Local Developer Server
-1. Click the **Developer / Local Server** tab in LM Studio (the `<->` icon on the left bar).
-2. Select your downloaded model from the top dropdown.
-3. In the right sidebar:
-   - **Port**: `1234`
-   - **CORS**: **Toggle ON "Cross-Origin Resource Sharing (CORS)"** *(Crucial for browser communication)*
-4. Click **Start Server**. You will see:
-   ```text
-   Server running at http://localhost:1234
-   ```
-
-#### Step 4: Connect TeXStudio Local
-1. In TeXStudio Local, click the **AI Assistant** button.
-2. Under **AI Engine Provider**, select **LM Studio (Localhost:1234)**.
-3. The endpoint is automatically set to `http://localhost:1234/v1`.
-4. Type your prompt or click a quick chip (e.g. *"Fix LaTeX Error"*) and click **Ask AI**.
-5. When the solution appears, click **Insert at Cursor** to instantly insert the LaTeX snippet into your editor!
-
----
-
-### Option 2: 🦙 Ollama (Terminal & Background Daemon)
-If you prefer running models via the terminal:
-
-1. Install Ollama from [https://ollama.com](https://ollama.com).
-2. Pull your model:
-   ```bash
-   ollama run llama3
-   # or for coding:
-   ollama run deepseek-coder:6.7b
-   ```
-3. Start the server with CORS enabled so your local browser can communicate with it:
-   ```bash
-   # Windows (PowerShell)
-   $env:OLLAMA_ORIGINS="*"
-   ollama serve
-
-   # macOS / Linux (Bash)
-   OLLAMA_ORIGINS="*" ollama serve
-   ```
-4. In TeXStudio Local AI drawer, select **Ollama (Localhost:11434)** and start querying!
-
----
-
-### Option 3: ⚡ Google Gemini (Cloud Free Tier)
-For instant cloud assistance without installing local LLMs:
-
-1. Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-2. In TeXStudio Local, select **Google Gemini (Direct API Key)**.
-3. Paste your key into the **Google Gemini API Key** field.
-4. *Security guarantee*: Your API key is stored **only in your browser's private `localStorage`**—it is never sent to the backend server and never saved into Git!
-5. Automatically supports multi-model fallback (`gemini-2.5-flash`, `gemini-3.1-flash-lite`, `gemini-2.5-pro`).
-
----
-
-### Option 4: 🌐 OpenAI / Claude / Custom OpenAI-Compatible
-1. Select **OpenAI / Claude / Compatible Custom API**.
-2. Enter your endpoint (e.g. `https://api.openai.com/v1`).
-3. Enter your API key (`sk-...`).
-4. Works with any OpenAI-compatible server (vLLM, TextGen WebUI, Jan, LocalAI).
-
----
-
-## 🎯 Key Workstation Features
-
-### 1. 📂 Multi-File Project Tree & Drag-and-Drop Assets
-- Split large documents into chapters (`chapter1.tex`, `macros.sty`, `references.bib`).
-- **Drag-and-Drop Image Import**: Drop `.png`, `.jpg`, `.pdf`, or `.svg` files directly into the editor. They are saved in `figures/` and a properly configured `\begin{figure}` block is automatically placed at your cursor.
-
-### 2. ⚡ Sub-Second Hardware Compilation
-- Direct local compiler execution using your hardware CPU cores.
-- Switch between **pdfLaTeX**, **XeLaTeX**, and **LuaLaTeX** on the fly.
-- SyncTeX enabled by default (`-synctex=1`).
-- Complex CircuiTikZ analog schematics, PGF plots, and heavy mathematical documents compile in **under 0.7 seconds**.
-
-### 3. 🎨 High-DPI Vector Canvas PDF Viewer
-- Custom PDF rendering pipeline built on PDF.js WebWorker.
-- Continuous vertical scrolling with a visible scrollbar.
-- Direct editable page jumper (`Page [ 2 ] of 12`).
-- Fit-to-Width, Fit-to-Page, and zoom controls (50% to 300%).
-- **Dark Paper Mode**: Invert document view for comfortable night-time writing without affecting the compiled PDF output.
-
-### 4. 📊 Visual LaTeX Table Generator
-- Intuitive modal interface to configure rows, columns, and cell alignment.
-- Type headers and cell values directly into an interactive preview grid.
-- Select between **Booktabs** (`\toprule \midrule \bottomrule`) for publication-grade academic papers or **Classic** border grids (`|c|c|`).
-- Automatically formats clean `\begin{table} ... \end{table}` with captions and reference labels.
-
-### 5. 🔍 Intelligent `\cite{}` and `\ref{}` Autocomplete
-- Powered by CodeMirror 6.
-- Typing `\cite{` scans all `.bib` files in your project and pops up a list of publication keys and paper titles.
-- Typing `\ref{` scans all `\label{...}` entries across all `.tex` files in your project.
-- Built-in completion for over 60 standard LaTeX commands (`\section`, `\textbf`, `\begin`, etc.).
-
-### 6. 📑 Live Document Outline & Jump Navigation
-- Automatically scans your active document for `\section`, `\subsection`, and `\subsubsection` headings.
-- Click any outline node to smoothly scroll the editor to that section with centered viewport focus.
-
-### 7. 🕒 Local Version History & Snapshot Timeline
-- Takes an automated snapshot every time a document compiles successfully.
-- Create manual snapshots with custom notes (e.g., *"Before rewriting Section 3"*).
-- 1-click restore to any previous revision.
-
-### 8. 📦 Submission ZIP Export
-- 1-click download of your entire project as a clean `.zip` archive formatted for submission to **arXiv**, **IEEE**, or **ACM**.
-
----
-
-## 🧪 Automated Smoke Test Suite
-
-To verify that your computer has all prerequisites and can compile documents, run:
-```bash
-npm test
-```
-
-Expected output:
-```text
-  ╔═════════════════════════════════════════════════════════════════╗
-  ║        TeXStudio Local — Environment & Smoke Test Suite        ║
-  ╚═════════════════════════════════════════════════════════════════╝
-
-[1/4] Checking Node.js Runtime...
-  ✓ Node.js version v26.7.0 detected (win32 x64)
-[2/4] Checking Local LaTeX Distribution...
-  ✓ Found primary TeX engine: MiKTeX-pdfTeX 4.23 (MiKTeX 25.12)
-  ✓ Optional engine 'xelatex': available
-  ✓ Optional engine 'lualatex': available
-[3/4] Performing Live Compilation Test (CircuiTikZ & Math)...
-  ✓ Compilation succeeded in 0.60s (Output PDF: 108818 bytes)
-[4/4] Verifying Frontend Bundles & Offline Assets...
-  ✓ All CodeMirror and PDF.js offline bundles are present and ready.
-
-───────────────────────────────────────────────────────────────────
-  🎉 ALL CHECKS PASSED (4/4)!
-  This computer is 100% ready to run TeXStudio Local.
-  Start with: npm start
-───────────────────────────────────────────────────────────────────
-```
-
----
-
-## ⌨️ Keyboard Shortcuts
+## Shortcuts
 
 | Shortcut | Action |
-| :--- | :--- |
-| `Ctrl + Enter` / `Cmd + Enter` | **Compile LaTeX Document** |
-| `Ctrl + B` / `Cmd + B` | **Toggle Sidebar (File Tree & Outline)** |
-| `Ctrl + Space` | Trigger Intelligent Autocompletion (`\cite`, `\ref`, commands) |
-| `Tab` | Indent LaTeX Code |
-| `Shift + Tab` | Outdent LaTeX Code |
+| --- | --- |
+| Ctrl/Cmd + Enter | Compile, accepting any pending AI edit |
+| Ctrl/Cmd + B | Toggle file sidebar |
+| Ctrl/Cmd + F / H | Find / replace |
+| Ctrl/Cmd + Shift + F | Format active LaTeX source |
+| Ctrl + Space | Command completion |
+| Ctrl/Cmd + click PDF | Jump to source |
+| Escape in editor | Reject pending AI edit |
+| Ctrl/Cmd + Z | Undo accepted edit or formatting |
 
----
+## Verification and implementation status
 
-## 🏗️ Technical Architecture
+```sh
+npm test
+npm run build
+node scripts/ai-conversation-regressions.cjs
+node scripts/pdf-chat-regressions.cjs
+node scripts/format-regressions.cjs
+```
 
-- **Backend**: Node.js & Express (`server.js`)
-  - Dynamic discovery of local TeX engines across Windows, macOS, and Linux without hardcoded paths.
-  - Isolated temporary workspaces in `os.tmpdir()` with automated cleanup.
-  - Multi-file assembly and Base64 binary decoding for graphics.
-  - Streaming zip archive generation with `archiver`.
-- **Frontend**: Vanilla HTML5, CSS Custom Properties, and ES2022.
-  - **CodeMirror 6**: Unified bundler with `@codemirror/legacy-modes/mode/stex`, `@codemirror/theme-one-dark`, and `@codemirror/autocomplete`.
-  - **PDF.js v3.11**: Local WebWorker rendering directly to high-DPI HTML5 canvas elements with continuous multi-page vertical scroll and custom dark paper mode.
-  - **Zero external CDN dependencies** during normal operation.
+Additional live audit scripts require the running app and, for AI tests, a configured local LM Studio server. See [the feature audit](docs/FEATURE_AUDIT.md) for checks, limitations and remaining work. The overhaul is not complete: source-to-PDF navigation UI, Git push/pull UI and persistent track changes remain unfinished. Local Git initialization and commits are available.
 
----
+## Architecture and privacy
 
-## 🔒 Privacy & Security Guarantee
+The current app uses **Next.js 16 App Router, React 19 and TypeScript**, with local route handlers for compilation, projects, snapshots, Git, spelling, exports and local AI. Documents live in `projects/`; that directory, build output and local verification images/PDFs are excluded from Git. The initial vanilla/Express implementation remains in the repository for reference; npm start runs the Next.js app.
 
-- **100% Localhost**: Your files and LaTeX code never leave your personal computer.
-- **Zero Cloud Dependence**: Compiles without an internet connection.
-- **No Telemetry**: No tracking scripts, no external analytics, no user tracking.
-- **Safe Key Storage**: API keys are stored exclusively in your browser's local sandbox (`localStorage`).
+Compilation and spell checking run locally. Cloud AI sends your prompts, recent conversation and attached source context to the chosen provider; local AI sends it to your local model server. The interface has no analytics tracking. First dependency installation and missing TeX package installation can require internet access. TeX runs without shell escape and with isolated temporary workspaces and validated file paths.
 
----
+This is designed as a trusted local workstation. Deploying to Vercel is not supported by the current native-compilation and disk-storage backend; a hosted deployment needs separate storage, authentication and a TeX compilation service. The mobile notice does not change these backend requirements.
 
-## 📄 License
+## License
 
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
+[MIT](LICENSE).

@@ -1,0 +1,65 @@
+%!TEX engine = xelatex
+\documentclass[11pt,a4paper]{article}
+\usepackage{iftex}
+\RequireXeTeX
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\usepackage{tikz}
+\usepackage{xcolor}
+\setmainfont{Latin Modern Roman}[Ligatures=TeX]
+\setsansfont{Latin Modern Sans}
+% Fonts bundled with Windows; no separate Amiri/Noto installation required.
+\newfontfamily\arabicfont{Arial}[Script=Arabic,Scale=1.2]
+\newfontfamily\hindifont{Nirmala UI}[Script=Devanagari,Scale=1.1]
+\setmainlanguage{english}
+\setotherlanguages{arabic,hindi}
+
+% XeTeX primitives: change color at digit boundaries without opening groups.
+\newXeTeXintercharclass\myDigitsClass
+\XeTeXcharclass `0 = \myDigitsClass
+\XeTeXcharclass `1 = \myDigitsClass
+\XeTeXcharclass `2 = \myDigitsClass
+\XeTeXcharclass `3 = \myDigitsClass
+\XeTeXcharclass `4 = \myDigitsClass
+\XeTeXcharclass `5 = \myDigitsClass
+\XeTeXcharclass `6 = \myDigitsClass
+\XeTeXcharclass `7 = \myDigitsClass
+\XeTeXcharclass `8 = \myDigitsClass
+\XeTeXcharclass `9 = \myDigitsClass
+\XeTeXinterchartoks 0 \myDigitsClass = {\color{red}}
+\XeTeXinterchartoks \myDigitsClass 0 = {\color{black}}
+\XeTeXinterchartoks 4095 \myDigitsClass = {\color{red}}
+\XeTeXinterchartoks \myDigitsClass 4095 = {\color{black}}
+
+\title{\textbf{XeLaTeX Advanced Document}}
+\author{Automated Production Framework}
+\date{October 2026}
+\begin{document}
+\maketitle
+\section{XeTeX Engine Test}
+\begingroup
+\XeTeXinterchartokenstate=1
+Native XeTeX digit coloring: 2026, 847, and 100000.
+\par
+\endgroup
+\section{Multilingual Script Rendering}
+\begin{itemize}
+  \item \textbf{Right-to-left Arabic}
+    \begin{Arabic}
+      الجمهورية والخطوط العربية المعقدة يتم تنسيقها تلقائياً وبشكل صحيح.
+    \end{Arabic}
+  \item \textbf{Devanagari ligatures}
+    \begin{hindi}
+      देवनागरी लिपि और जटिल संयुक्ताक्षर (जैसे: श्री, ज्ञान, क्र) रेंडर होते हैं।
+    \end{hindi}
+\end{itemize}
+\section{Geometric Drawing}
+\begin{center}
+  \begin{tikzpicture}[scale=0.8]
+    \draw[thick,color=blue!60,fill=blue!5] (0,0) circle (2cm);
+    \node[align=center] at (0,0) {Native\\Unicode\\Shaping};
+    \draw[line width=2pt,->,color=orange] (2.5,0) -- (4.5,0);
+    \node[draw,rectangle,rounded corners,fill=green!10] at (6.5,0) {\textbf{PDF Generation}};
+  \end{tikzpicture}
+\end{center}
+\end{document}

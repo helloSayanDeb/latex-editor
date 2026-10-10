@@ -57,7 +57,7 @@ if (-not $nodeCmd) {
     
     if (-not $nodeCmd) {
         Write-Err "Node.js could not be installed automatically."
-        Write-Host "  Please install Node.js (v18+) from: https://nodejs.org/" -ForegroundColor Yellow
+        Write-Host "  Please install Node.js (v20.9+) from: https://nodejs.org/" -ForegroundColor Yellow
         exit 1
     }
 }
@@ -128,11 +128,11 @@ if (-not $npmCmd) {
 Write-Success "Dependencies installed."
 
 # -----------------------------------------------------------------------------
-# 4. Build Offline CodeMirror Bundle
+# 4. Build Next.js Production Bundle
 # -----------------------------------------------------------------------------
-Write-Step "4/5" "Building Frontend Assets..."
+Write-Step "4/5" "Building Next.js Production Application..."
 & npm run build
-Write-Success "Bundle public/cm.bundle.js built."
+Write-Success "Next.js application built."
 
 # -----------------------------------------------------------------------------
 # 5. Run Verification Smoke Test Suite
@@ -156,4 +156,4 @@ Write-Host "  ══════════════════════
 Write-Host ""
 
 Start-Process "http://localhost:2303"
-& node server.js
+& npm start

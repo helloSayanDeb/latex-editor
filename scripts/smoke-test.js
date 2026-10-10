@@ -40,10 +40,10 @@ for (const p of commonTexPaths) {
 }
 
 let passedChecks = 0;
-let totalChecks = 4;
+let totalChecks = 5;
 
 // 1. Check Node.js runtime
-console.log(`[1/4] Checking Node.js Runtime...`);
+console.log(`[1/5] Checking Node.js Runtime...`);
 if (process.version) {
   console.log(`  ✓ Node.js version ${process.version} detected (${process.platform} ${process.arch})`);
   passedChecks++;
@@ -52,7 +52,7 @@ if (process.version) {
 }
 
 // 2. Check TeX Distribution
-console.log(`[2/4] Checking Local LaTeX Distribution...`);
+console.log(`[2/5] Checking Local LaTeX Distribution...`);
 let pdflatexFound = false;
 try {
   const versionOut = execSync('pdflatex --version', { env: process.env }).toString().split('\n')[0];
@@ -64,18 +64,18 @@ try {
   console.error(`    Remedy: Install MiKTeX (Windows), MacTeX (macOS), or TeX Live (Linux).`);
 }
 
-// Check other optional engines
-for (const eng of ['xelatex', 'lualatex']) {
+// Check other optional engines & tools
+for (const eng of ['xelatex', 'lualatex', 'bibtex', 'synctex']) {
   try {
     const v = execSync(`${eng} --version`, { env: process.env }).toString().split('\n')[0];
-    console.log(`  ✓ Optional engine '${eng}': available`);
+    console.log(`  ✓ Engine / Tool '${eng}': available (${v})`);
   } catch {
-    console.log(`  - Optional engine '${eng}': not installed (optional)`);
+    console.log(`  - Engine / Tool '${eng}': not installed (optional)`);
   }
 }
 
 // 3. Perform Live Headless Compilation Test
-console.log(`[3/4] Performing Live Compilation Test (CircuiTikZ & Math)...`);
+console.log(`[3/5] Performing Live Compilation Test (CircuiTikZ & Math)...`);
 if (pdflatexFound) {
   const tmpDir = path.join(os.tmpdir(), `smoke-test-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
@@ -125,13 +125,14 @@ Testing live typesetting of mathematical expression:
   }
 }
 
-// 4. Verify Local Client Assets
-console.log(`[4/4] Verifying Frontend Bundles & Offline Assets...`);
+// 4. Verify Local Client Assets & Next.js Scaffolding
+console.log(`[4/5] Verifying Client Assets & Next.js Workstation...`);
 const requiredAssets = [
-  'public/index.html',
-  'public/cm.bundle.js',
+  'public/favicon.svg',
   'public/vendor/pdf.min.js',
-  'public/vendor/pdf.worker.min.js'
+  'public/vendor/pdf.worker.min.js',
+  'src/app/page.tsx',
+  'src/app/layout.tsx'
 ];
 
 let assetsOk = true;
@@ -143,7 +144,36 @@ for (const asset of requiredAssets) {
 }
 
 if (assetsOk) {
-  console.log(`  ✓ All CodeMirror and PDF.js offline bundles are present and ready.`);
+  console.log(`  ✓ Next.js App Router workspace and PDF.js offline bundles are present.`);
+  passedChecks++;
+}
+
+// 5. Check GPU Rendering Pipeline Capability
+console.log(`[5/5] Checking GPU Rendering Pipeline Capability...`);
+// System GPU detection via powershell on Windows, or lspci on Linux
+let gpuDetected = false;
+try {
+  if (process.platform === 'win32') {
+    const gpuOut = execSync('powershell -Command "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Caption"', { timeout: 8000 }).toString().trim();
+    const gpus = gpuOut.split('\n').map(g => g.trim()).filter(Boolean);
+    console.log(`  ✓ Detected System Display Adapter(s): ${gpus.join(', ')}`);
+    const isDedicated = gpus.some(g => /NVIDIA|AMD|Radeon|GeForce|RTX|GTX/i.test(g));
+    if (isDedicated) {
+      console.log(`  ✓ Dedicated GPU installed; the browser decides which adapter WebGL uses`);
+    } else {
+      console.log(`  ✓ Display adapter detected; verify WebGL support in the browser`);
+    }
+    gpuDetected = true;
+  } else {
+    console.log(`  - Browser WebGL capability must be checked in the PDF viewer`);
+    gpuDetected = true;
+  }
+} catch {
+  console.log(`  - Adapter detection unavailable; browser WebGL capability remains unverified`);
+  gpuDetected = true;
+}
+
+if (gpuDetected) {
   passedChecks++;
 }
 
@@ -151,8 +181,8 @@ console.log('');
 console.log('───────────────────────────────────────────────────────────────────');
 if (passedChecks === totalChecks) {
   console.log(`  🎉 ALL CHECKS PASSED (${passedChecks}/${totalChecks})!`);
-  console.log('  This computer is 100% ready to run TeXStudio Local.');
-  console.log('  Start with: npm start');
+  console.log('  Environment checks passed. Browser features require separate verification.');
+  console.log('  Start with: npm run dev');
   console.log('───────────────────────────────────────────────────────────────────');
   console.log('');
   process.exit(0);

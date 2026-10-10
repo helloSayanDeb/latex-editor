@@ -1,0 +1,26 @@
+const fs=require('node:fs'),path=require('node:path'),Module=require('node:module'),assert=require('node:assert/strict'),ts=require('typescript');
+function load(file){const filename=path.resolve(file),m=new Module(filename,module);m.filename=filename;m.paths=module.paths;m.require=name=>name.startsWith('.')?load(path.resolve(path.dirname(filename),name+'.ts')):require(name);m._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,filename);return m.exports;}
+const {sendAIPrompt}=load('src/lib/ai-providers.ts'); const {localAIBase,localModels}=load('src/lib/local-ai.ts'); const {resolveAIConfig}=load('src/lib/ai-config.ts');
+(async()=>{
+  const settings={apiKey:'cloud-key',encryptedKey:'locked-cloud-key',masterPass:'',baseUrl:'',modelName:'local-model'};
+  for(const provider of ['lmstudio','ollama']) { const config=await resolveAIConfig(provider,settings,()=>{throw new Error('Local provider attempted cloud decryption')});assert.equal(config.apiKey,undefined); }
+  console.log('PASS: local providers ignore both plaintext and locked cloud keys');
+  assert.equal(localAIBase('lmstudio','http://localhost:1234/'),'http://127.0.0.1:1234/v1'); assert.equal(localAIBase('ollama','http://localhost:11434/api/'),'http://127.0.0.1:11434'); assert.throws(()=>localAIBase('lmstudio','https://example.com')); console.log('PASS: normalized root endpoints, IPv4 and remote-address rejection');
+  const original=global.fetch;
+  try {
+    global.fetch=async(url,opts)=> {assert.match(url,/\/api\/tags$/);return {ok:true,json:async()=>({models:[{name:'llama-test:latest'},{model:'qwen-test:latest'}]})}};
+    assert.deepEqual(await localModels('ollama'),['llama-test:latest','qwen-test:latest']);
+    global.fetch=async(url,opts)=>{if(url.endsWith('/models'))return {ok:true,json:async()=>({data:[{id:'embed-test'},{id:'chat-test'}]})}; const body=JSON.parse(opts.body); assert.equal(body.model,'chat-test');assert.match(body.messages[1].content,/selected equation/);return {ok:true,json:async()=>({choices:[{message:{content:'valid latex'}}]})}};
+    assert.equal(await sendAIPrompt({provider:'lmstudio'},'fix equation',{selectedText:'selected equation'}),'valid latex'); console.log('PASS: LM Studio discovery excludes embeddings and sends discovered model');
+    global.fetch=async(url,opts)=>{ const body=JSON.parse(opts.body); assert.match(url,/\/api\/chat$/);assert.equal(body.stream,false);assert.equal(body.model,'installed-model');assert.match(body.messages[1].content,/selected equation/);return {ok:true,json:async()=>({message:{content:'valid latex'}})}};
+    assert.equal(await sendAIPrompt({provider:'ollama',model:'installed-model'},'fix equation',{selectedText:'selected equation'}),'valid latex'); console.log('PASS: Ollama non-streaming request and response contract');
+    global.fetch=async(url,opts)=>{const body=JSON.parse(opts.body);assert.equal(opts.headers.Authorization,'Bearer test-key');assert.match(url,/\/chat\/completions$/);assert.equal(body.temperature,undefined);return {ok:true,json:async()=>({choices:[{message:{content:'valid latex'}}]})}};
+    assert.equal(await sendAIPrompt({provider:'openai',apiKey:'test-key'},'fix equation'),'valid latex'); console.log('PASS: OpenAI auth/messages/response contract without unsupported default temperature');
+    global.fetch=async()=>({ok:false,status:401,text:async()=>'invalid api key'});await assert.rejects(sendAIPrompt({provider:'openai',apiKey:'test-key'},'fix equation'),/401/);
+    global.fetch=async()=>({ok:true,json:async()=>({choices:[]})});await assert.rejects(sendAIPrompt({provider:'openai',apiKey:'test-key'},'fix equation'),/no text/);
+    global.fetch=async()=>({ok:true,json:async()=>({error:'model unavailable'})});await assert.rejects(sendAIPrompt({provider:'ollama',model:'missing'},'fix equation'),/model unavailable/);console.log('PASS: invalid key, malformed and unavailable-model errors are visible');
+    global.fetch=async(url)=>{assert.match(url,/gemini-3\.8-flash:generateContent/);return {ok:true,json:async()=>({candidates:[{content:{parts:[{text:'valid latex'}]}}]})}};assert.equal(await sendAIPrompt({provider:'gemini',apiKey:'test-key'},'fix equation'),'valid latex');console.log('PASS: exact requested Gemini default');
+  } finally {global.fetch=original;}
+  const base='http://localhost:2303/api/ai/local'; const models=await fetch(base+'?provider=lmstudio&baseUrl='+encodeURIComponent('http://localhost:1234')).then(r=>r.json());assert(models.models.includes('google/gemma-4-e2b'),JSON.stringify(models));
+  const response=await fetch(base,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({config:{provider:'lmstudio',baseUrl:'http://localhost:1234',model:models.models[0]},prompt:'Write only a fenced LaTeX equation for the area of a circle.'})}); const data=await response.json();assert(response.ok,JSON.stringify(data));assert.match(data.text,/pi/);fs.writeFileSync('docs/lmstudio-live-latest.txt',data.text);console.log('PASS: real LM Studio list and inference through normalized backend route');
+})().catch(error=>{console.error(error);process.exitCode=1});
