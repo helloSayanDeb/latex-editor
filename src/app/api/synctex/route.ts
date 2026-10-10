@@ -1,3 +1,4 @@
+import { readRequestJSON } from '@/lib/request-limits';
 import { PROJECTS_DIR } from '@/lib/data-path';
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
@@ -7,7 +8,7 @@ import { sanitizeProjectId, sanitizePath } from '@/lib/security';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await readRequestJSON(req);
     const { action, projectId = 'default', pdfFile = 'main.pdf', sourceFile = 'main.tex', line, page, x, y } = body;
 
     const cleanId = sanitizeProjectId(projectId);

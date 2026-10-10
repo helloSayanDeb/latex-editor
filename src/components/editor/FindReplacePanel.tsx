@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, Replace, ChevronUp, ChevronDown, X, Check, RefreshCw } from 'lucide-react';
 import type { EditorView } from '@codemirror/view';
 import { findMatches, type SearchMatch } from '@/lib/search';
+import { Checkbox } from '@/components/Checkbox';
 
 interface FindReplacePanelProps {
   isOpen: boolean;
@@ -243,33 +244,9 @@ export const FindReplacePanel: React.FC<FindReplacePanelProps> = ({
       {searchError && <p role="alert" className="text-xs text-amber-400">{searchError}</p>}
       {/* Row 3: Option toggles */}
       <div className="flex items-center gap-2 pt-1 border-t border-white/5 text-[11px] text-slate-400">
-        <label className="flex items-center gap-1 cursor-pointer hover:text-white">
-          <input
-            type="checkbox"
-            checked={caseSensitive}
-            onChange={e => setCaseSensitive(e.target.checked)}
-            className="rounded bg-slate-800 border-slate-700 text-emerald-500"
-          />
-          <span>Match Case (Aa)</span>
-        </label>
-        <label className="flex items-center gap-1 cursor-pointer hover:text-white">
-          <input
-            type="checkbox"
-            checked={useRegex}
-            onChange={e => setUseRegex(e.target.checked)}
-            className="rounded bg-slate-800 border-slate-700 text-emerald-500"
-          />
-          <span>Regex (.*)</span>
-        </label>
-        <label className="flex items-center gap-1 cursor-pointer hover:text-white">
-          <input
-            type="checkbox"
-            checked={wholeWord}
-            onChange={e => setWholeWord(e.target.checked)}
-            className="rounded bg-slate-800 border-slate-700 text-emerald-500"
-          />
-          <span>Whole Word (\b)</span>
-        </label>
+        <Checkbox checked={caseSensitive} onChange={setCaseSensitive}>Match Case (Aa)</Checkbox>
+        <Checkbox checked={useRegex} onChange={setUseRegex}>Regex (.*)</Checkbox>
+        <Checkbox checked={wholeWord} onChange={setWholeWord}>Whole Word (\b)</Checkbox>
       </div>
     </div>
   );

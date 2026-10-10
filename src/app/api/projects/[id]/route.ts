@@ -1,3 +1,4 @@
+import { readRequestJSON } from '@/lib/request-limits';
 import { NextRequest, NextResponse } from 'next/server';
 import { getProject, saveProject, deleteProject } from '@/lib/project-store';
 
@@ -23,7 +24,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const body = await req.json();
+    const body = await readRequestJSON(req);
     // A delayed autosave must never recreate a project that was deleted.
     if (!getProject(id)) {
       return NextResponse.json({ ok: false, error: 'Project not found' }, { status: 404 });

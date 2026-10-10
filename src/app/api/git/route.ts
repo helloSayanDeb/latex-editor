@@ -1,3 +1,4 @@
+import { readRequestJSON } from '@/lib/request-limits';
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import { PROJECTS_DIR } from '@/lib/data-path';
@@ -10,7 +11,7 @@ const execAsync = promisify(execFile);
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await readRequestJSON(req);
     const { action, projectId = 'default', message, file } = body;
     const cleanId = sanitizeProjectId(projectId);
     const projDir = path.join(PROJECTS_DIR, cleanId);

@@ -1,3 +1,4 @@
+require('./local-test-session.cjs');
 const fs=require('node:fs'),path=require('node:path'),Module=require('node:module'),assert=require('node:assert/strict'),ts=require('typescript');
 function load(file){const filename=path.resolve(file),m=new Module(filename,module);m.filename=filename;m.paths=module.paths;m.require=name=>name.startsWith('.')?load(path.resolve(path.dirname(filename),name+'.ts')):require(name);m._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,filename);return m.exports;}
 const {sendAIPrompt}=load('src/lib/ai-providers.ts'); const {localAIBase,localModels}=load('src/lib/local-ai.ts'); const {resolveAIConfig}=load('src/lib/ai-config.ts');

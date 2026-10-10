@@ -1,3 +1,4 @@
+require('./local-test-session.cjs');
 const fs = require('node:fs'), path = require('node:path'), Module = require('node:module');
 const assert = require('node:assert/strict'), ts = require('typescript');
 const { pathToFileURL } = require('node:url');
@@ -27,7 +28,9 @@ async function until(check) { for (let i = 0; i < 100; i++) { if (check()) retur
 
   // Exercise the actual React renderer, including sanitization and TeX delimiter normalization.
   const output = path.resolve('scripts/.chat-markdown-test.mjs');
-  fs.writeFileSync(output, ts.transpileModule(fs.readFileSync('src/components/ai/ChatMarkdown.tsx', 'utf8'),
+  const dialogOutput = path.resolve('scripts/.chat-dialog-test.mjs');
+  fs.writeFileSync(dialogOutput, ts.transpileModule(fs.readFileSync('src/components/AppDialog.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText);
+  fs.writeFileSync(output, ts.transpileModule(fs.readFileSync('src/components/ai/ChatMarkdown.tsx', 'utf8').replace('@/components/AppDialog', './.chat-dialog-test.mjs'),
     { compilerOptions: { module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText);
   try {
     const { ChatMarkdown, normalizeChatMath } = await import(pathToFileURL(output));
@@ -38,8 +41,11 @@ async function until(check) { for (let i = 0; i < 100; i++) { if (check()) retur
     assert.match(normalizeChatMath('`\\(code\\)` and \\(math\\)'), /`\\\(code\\\)` and \$math\$/);
     const hostile = renderToStaticMarkup(React.createElement(ChatMarkdown, { content: '<script>alert(1)</script><u onclick="alert(1)">safe</u>[bad](javascript:alert(1)) ![alt](https://example.invalid/track.png)' }));
     assert.doesNotMatch(hostile, /<script|onclick=|href="javascript:|<img/);
+    const reference = renderToStaticMarkup(React.createElement(ChatMarkdown, { content: '[Reference](https://example.invalid/?source=private)' }));
+    assert.match(reference, /<button[^>]*class="chat-reference-link"/);
+    assert.doesNotMatch(reference, /<a\b|href=/);
     console.log('PASS real Markdown formatting, math, code preservation and unsafe HTML/URL stripping');
-  } finally { fs.unlinkSync(output); }
+  } finally { fs.unlinkSync(output); fs.unlinkSync(dialogOutput); }
 
   // Controlled DOM/render tasks verify no blank zoom frames and no all-page rasterization.
   class Element {

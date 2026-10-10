@@ -1,3 +1,4 @@
+require('./local-test-session.cjs');
 const fs=require('node:fs'),path=require('node:path'),Module=require('node:module'),assert=require('node:assert/strict'),ts=require('typescript');
 const filename=path.resolve('src/lib/latex-format.ts'),m=new Module(filename,module);m.paths=module.paths;m._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,filename);
 const {formatLatex}=m.exports;

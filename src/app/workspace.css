@@ -178,7 +178,7 @@ input[type=checkbox]:focus-visible { outline:2px solid #b3f3cf; outline-offset:3
 .sage-panel [role=log] { scrollbar-gutter: stable; }
 .sage-panel [role=log]:focus-visible { outline-offset: -2px; }
 .sage-panel .glass-card { background: #151c25; border-color: #ffffff10; box-shadow: none; }
-.sage-panel textarea { min-height: 66px; }
+.sage-panel textarea { height: calc(1.5em * 1.5 + 14px); min-height: calc(1.5em * 1.5 + 14px); line-height: 1.5; padding-top: 6px; padding-bottom: 6px; overflow-y: auto; }
 .assistant-divider { width: 7px; border-right: 0; }
 .workspace-main[data-assistant-docked=true] .workspace-panes[data-layout=split] .source-pane { flex-basis: clamp(280px, var(--editor-width, 50%), calc(100% - 287px)); }
 .assistant-shell[data-docked=false] { position: absolute; inset: 0 0 0 auto; width: min(440px, calc(100% - 24px)); z-index: 40; box-shadow: -12px 0 36px #0008; }
@@ -232,3 +232,44 @@ input[type=checkbox]:focus-visible { outline:2px solid #b3f3cf; outline-offset:3
 .sage-prompt-arrow:focus-visible, .sage-prompt-chip:focus-visible { outline: 2px solid #98c8ad; outline-offset: -2px; }
 .sage-panel { position: relative; }
 .sage-settings-toast { position: absolute; z-index: 60; top: 12px; right: 12px; display: flex; align-items: center; gap: 7px; padding: 9px 13px; border: 1px solid #5f987a; border-radius: 10px; background: #1d3528; color: #d4f3df; font-size: 12px; box-shadow: 0 8px 24px #0005; pointer-events: none; }
+.model-capability { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; padding: 3px 6px; border-radius: 5px; border: 1px solid #465446; flex-shrink: 0; }
+.model-capability-vision { color: #ecd49c; border-color: #8a7542; }
+.model-capability-text, .model-capability-unknown { color: #93a29a; }
+.sage-attach-image { flex-shrink: 0; }
+.sage-attach-image:disabled { opacity: .35; cursor: not-allowed; }
+.sage-image-preview { display: flex; align-items: center; gap: 10px; margin: 0 12px 8px; padding: 8px; border: 1px solid #41534a; border-radius: 10px; color: #d2dfd7; font-size: 12px; flex-shrink: 0; }
+.sage-image-preview img { width: 52px; height: 52px; object-fit: contain; border-radius: 6px; background: #fff; }
+.sage-image-preview span { flex: 1; }
+.sage-image-preview small { display: block; color: #94a69b; font-size: 10px; margin-top: 4px; }
+.sage-message-image { display: block; max-width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; margin-bottom: 8px; }
+.sage-sharing-note { font-size: 10px; color: #91a59a; padding: 0 12px 8px; margin: 0; flex-shrink: 0; }
+.sage-image-error { color: #f1b8a9; font-size: 11px; margin: 0 12px 8px; }
+.sage-context-controls { padding: 8px 12px; flex-shrink: 0; font-size: 11px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 14px; border-top: 1px solid #ffffff0b; }
+.sage-context-controls .custom-select { flex: 1; min-width: 130px; }
+.sage-context-controls .custom-select-trigger { padding: 6px 8px; font-size: 11px; }
+.sage-context-controls > .workspace-checkbox { min-height: 40px; white-space: nowrap; }
+.sage-context-controls .custom-select-menu { top: auto; bottom: calc(100% + 5px); }
+.sage-context-controls > small { width: 100%; font-size: 10px; color: #91a59a; }
+.workspace-checkbox { display: inline-flex; position: relative; align-items: center; gap: 7px; cursor: pointer; color: #b7c9bc; }
+.workspace-checkbox > input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; cursor: pointer; }
+.workspace-checkbox-box { width: 17px; height: 17px; display: grid; place-items: center; flex-shrink: 0; border: 1px solid #526b5e; border-radius: 5px; background: #131d18; transition: background .15s, border-color .15s; }
+.workspace-checkbox-box svg { opacity: 0; color: #10291d; }
+.workspace-checkbox > input:checked + .workspace-checkbox-box { background: #90cdaa; border-color: #90cdaa; }
+.workspace-checkbox > input:checked + .workspace-checkbox-box svg { opacity: 1; }
+.workspace-checkbox > input:focus-visible + .workspace-checkbox-box { outline: 2px solid #b3f3cf; outline-offset: 3px; }
+.workspace-checkbox:hover .workspace-checkbox-box { border-color: #90cdaa; }
+.sage-sharing-disclosure { display: flex; align-items: center; gap: 7px; width: 100%; padding: 8px 12px; border-top: 1px solid #ffffff0b; color: #bed0c4; text-align: left; font-size: 11px; background: #ffffff02; flex-shrink: 0; }
+.sage-sharing-disclosure small { margin-left: auto; color: #91a59a; font-size: 10px; }
+.sage-sharing-disclosure > svg:last-child { transition: transform .15s; }
+.sage-sharing-disclosure .is-open { transform: rotate(180deg); }
+.sage-sharing-disclosure:hover { background: #83ba9909; }
+.sage-sharing-disclosure:focus-visible { outline: 2px solid #90cdaa; outline-offset: -2px; }
+.sage-settings .input-dark { width: 100%; min-height: 40px; padding: 10px 12px; border: 1px solid #34483e; border-radius: 9px; background: linear-gradient(135deg,#17221d,#151a23); color: #e2e8f0; font-size: 12px; transition: border-color .15s, box-shadow .15s; }
+.sage-settings .input-dark::placeholder { color: #879d90; opacity: 1; font-family: inherit; font-size: inherit; }
+.sage-settings .input-dark:hover { border-color: #587b66; }
+.sage-settings .input-dark:focus { border-color: #6ebf94; outline: none; box-shadow: 0 0 0 2px #6ebf9420; }
+.sage-source-preview-toggle { color: #a4ceba; padding: 3px 0; }
+.sage-source-preview { width: 100%; max-height: 100px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: #0d1218; padding: 8px; border-radius: 6px; font-size: 10px; }
+.sage-edit-mode button:disabled { opacity: .4; cursor: not-allowed; }
+.chat-reference-link { display: inline; padding: 0; border: 0; background: transparent; color: var(--accent, #8bc9a9); font: inherit; text-align: inherit; text-decoration: underline; cursor: pointer; }
+.chat-reference-link:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 2px; }

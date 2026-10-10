@@ -30,6 +30,9 @@ jobs:
       # Electron is installed explicitly below; no native canvas build is needed.
       - run: npm ci --ignore-scripts
       - run: node node_modules/electron/install.js
+      - run: node scripts/privacy-regressions.cjs
+      - run: node scripts/image-regressions.cjs
+      - run: node scripts/ai-conversation-regressions.cjs
       - run: npm run desktop:prepare
       - run: npx electron-builder --${{ matrix.target }} --${{ matrix.arch }} --publish never
         env:
@@ -46,6 +49,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: installers
@@ -54,7 +58,11 @@ jobs:
         working-directory: installers
       - run: |
           if ! gh release view "$TAG" --repo "$REPOSITORY" >/dev/null 2>&1; then
-            gh release create "$TAG" --repo "$REPOSITORY" --title "TeXStudio Local $TAG" --notes "Desktop installers with a bundled runtime. A separately installed TeX distribution is required for compilation. These installers are unsigned."
+            if [ -f "docs/releases/$TAG.md" ]; then
+              gh release create "$TAG" --repo "$REPOSITORY" --title "TeXStudio Local $TAG" --notes-file "docs/releases/$TAG.md"
+            else
+              gh release create "$TAG" --repo "$REPOSITORY" --title "TeXStudio Local $TAG" --notes "Desktop installers with a bundled runtime. A separately installed TeX distribution is required for compilation. These installers are unsigned."
+            fi
           fi
           gh release upload "$TAG" installers/* --repo "$REPOSITORY" --clobber
         env:

@@ -2,6 +2,12 @@
 
 Verified on Windows x64, 11 October 2026.
 
+## Version 2.0.2
+
+The local privacy and image-assistance update adds per-launch session protection to the bundled server and its desktop API calls. Its production build, privacy/image regressions and 25-check feature audit pass locally. The Windows 2.0.2 installer is checked with the same isolated installation, native-engine, persistence and shutdown flow below. Release CI additionally runs privacy, image contract and conversation tests before packaging each platform. See [2.0.2 notes](releases/v2.0.2.md) for changes and security limits.
+
+## Verification scope
+
 - Production Next.js build and TypeScript checks passed.
 - Existing environment, AI conversation/inline-edit, PDF-position/Markdown and formatter regression checks passed.
 - NSIS installer built with the Electron runtime, app icon and per-user desktop shortcut.

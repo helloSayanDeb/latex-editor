@@ -1,3 +1,4 @@
+require('./local-test-session.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const Module = require('node:module');

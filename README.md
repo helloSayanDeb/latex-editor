@@ -1,6 +1,29 @@
-# TeXStudio Local
+<div align="center">
+  <img src="public/favicon.svg" width="72" height="72" alt="TeXStudio Local logo" />
+  <h1>TeXStudio Local</h1>
+  <p><strong>A space for better papers.</strong><br />Write locally. Typeset beautifully. Keep your work yours.</p>
+  <p>
+    <a href="https://github.com/helloSayanDeb/latex-editor/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/helloSayanDeb/latex-editor?color=68aa87" /></a>
+    <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-68aa87" /></a>
+    <img alt="Windows and macOS" src="https://img.shields.io/badge/desktop-Windows%20%7C%20macOS-343e48" />
+  </p>
+  <p><a href="https://github.com/helloSayanDeb/latex-editor/releases/latest"><strong>Download desktop app</strong></a> · <a href="#developer-setup">Developer setup</a> · <a href="#tex-sage">TeX Sage</a> · <a href="#architecture-and-privacy">Privacy</a> · <a href="docs/FEATURE_AUDIT.md">Feature status</a></p>
+</div>
 
-A personal LaTeX workspace with a CodeMirror editor, PDF preview and TeX Sage assistant. Use the desktop app or run it locally in your browser. Compilation uses your installed TeX distribution.
+A personal LaTeX workspace with a CodeMirror editor, fast PDF preview and optional TeX Sage assistance. Use the desktop app or run it locally in your browser. Your installed TeX distribution handles compilation; a separately configured AI provider handles AI requests.
+
+| Write | Typeset | Get help |
+| --- | --- | --- |
+| Syntax highlighting, completion, formatting and local spelling | Native pdfLaTeX, XeLaTeX and LuaLaTeX with SyncTeX navigation | Text or reference images, explicit source sharing and inline AI edit review |
+
+### New in 2.0.2
+
+- Image references through upload **or clipboard paste**, with model capability badges.
+- Explicit source sharing, optional history, conversations separated by provider/endpoint and stronger saved-key encryption.
+- Protected loopback APIs and bounded compiler jobs. This remains a trusted local tool, **not an OS-sandboxed compiler**.
+- Compact sharing controls, consistent custom checkboxes/settings fields and a shorter message composer.
+
+See the [2.0.2 release notes](docs/releases/v2.0.2.md) for verification and compatibility limits.
 
 ## Easy installation
 
@@ -48,7 +71,7 @@ npm run build
 npm start
 ```
 
-Open `http://localhost:2303`. For development, use `npm run dev`.
+Open `http://localhost:2303`. For development, use `npm run dev`. These commands bind to loopback and generate a private session token for the local API. Use these launchers rather than invoking `next start`/`next dev` directly. Set `TEXSTUDIO_PORT` to use another port.
 
 Windows users can run `./setup.ps1`; macOS/Linux users can run `./setup.sh`. These scripts install dependencies, build the application, run environment checks and launch it. Inspect them before running; distribution installation may require administrator access and internet connectivity.
 
@@ -71,11 +94,17 @@ Supports Google Gemini, OpenAI, LM Studio and Ollama. Configure the provider in 
 - **Ollama:** run the local server with an available chat model, then choose it from the detected list. Default endpoint: `http://localhost:11434`.
 - **Gemini/OpenAI:** supply your API key and model. Keys remain in the tab unless encrypted with your optional master password. Local providers need no API key or master password.
 
-Recent conversation turns accompany follow-ups. Replies render Markdown, code blocks and math. Ask mode keeps answers in chat. Edit source mode automatically previews a single LaTeX code block inline, with removed code in red, proposed code in green and Accept/Reject beneath it. Select a snippet to constrain the request; follow-ups retain the last accepted edit range. Unchanged outer lines are trimmed even when the model returns a complete document.
+**Ask + No source is the default.** Expand the compact Sharing row to choose Selection or Active document and preview the source before sending. Other project files are never automatically attached. Include recent chat can be switched off; prior replies may contain source you previously shared. Conversations are kept in memory, separated by provider and endpoint, and can be cleared. They are not automatically transferred when you switch providers.
+
+Attach one **PNG, JPEG or WebP reference image** to transcribe an equation, explain a diagram or help write LaTeX. Use the upload button or paste a copied screenshot into chat with Ctrl/Cmd + V. PDFs and other attachments are unsupported. Images must be at most 8 MB and 16 megapixels; they are resized to a maximum 2048-pixel side and re-encoded as PNG to remove metadata. The prepared payload must be at most 4 MB. Original filenames are not sent. Images remain in chat memory, are sent only with their current request, and are not automatically resent with follow-ups.
+
+Local model menus retain text models and show **Text, Vision or Unverified** capability badges. Upload is enabled only for verified vision support. LM Studio's native model metadata and Ollama's model capabilities determine support; older servers without this metadata can still chat, but cannot attach images. Cloud vision support uses a conservative model-name registry at the official endpoint; availability still depends on your account and chosen model. Unknown/custom models keep text chat with upload disabled.
+
+Replies render Markdown, code blocks and math. Ask mode keeps answers in chat. Edit source mode requires explicit source sharing and automatically previews a single LaTeX code block inline, with removed code in red, proposed code in green and Accept/Reject beneath it. Select a snippet to constrain the request; follow-ups retain the last valid edit range. Unchanged outer lines are trimmed even when the model returns a complete document.
 
 Accept applies one undoable change. Reject/Escape discards the preview. **Compile accepts a pending edit and compiles the updated source**, removing its Reject controls. A subsequent edit request also finalizes the previous pending proposal before refining it. Successful compilations create snapshots. Multiple returned code blocks have individual preview actions. Quick prompts use circular previous/next buttons.
 
-LM Studio has been tested live locally. Cloud providers and Ollama have request/response contract tests; those do not guarantee access for every account or model. Model context limits and model-generated code can still require shorter conversations or manual correction.
+LM Studio text and image transcription have been tested live with a loaded `google/gemma-4-e2b` vision model. Cloud providers and Ollama have text/image request contract tests; those do not guarantee access for every account or model. Model context limits, image interpretation and model-generated code can still require shorter conversations or manual correction.
 
 ## Shortcuts
 
@@ -98,6 +127,8 @@ npm run build
 node scripts/ai-conversation-regressions.cjs
 node scripts/pdf-chat-regressions.cjs
 node scripts/format-regressions.cjs
+node scripts/image-regressions.cjs
+node scripts/privacy-regressions.cjs
 ```
 
 Additional live audit scripts require the running app and, for AI tests, a configured local LM Studio server. See [the feature audit](docs/FEATURE_AUDIT.md) for checks, limitations and remaining work. The overhaul is not complete: source-to-PDF navigation UI, Git push/pull UI and persistent track changes remain unfinished. Local Git initialization and commits are available.
@@ -126,7 +157,15 @@ After building a Windows installer, `node scripts/test-desktop.cjs` tests the on
 
 Release **2.0.1** built and passed packaged startup checks on Windows x64, Intel macOS and Apple Silicon macOS in [GitHub Actions](https://github.com/helloSayanDeb/latex-editor/actions/runs/38086418929). The Windows installer and one-command flow were tested locally with all three TeX engines, spelling, Git, persistent data and shutdown. macOS DMG installation, security approvals and native TeX compilation still need manual testing on a Mac. See [distribution verification](docs/DESKTOP_RELEASE.md) for the precise test scope.
 
-Compilation and spell checking run locally. Cloud AI sends your prompts, recent conversation and attached source context to the chosen provider; local AI sends it to your local model server. The interface has no analytics tracking. First dependency installation and missing TeX package installation can require internet access. TeX runs without shell escape and with isolated temporary workspaces and validated file paths.
+Compilation and spell checking run locally. AI sends your message, enabled recent chat, explicitly selected source context and current image to the chosen provider. Cloud AI sends this remotely; LM Studio/Ollama send it to your loopback model server. The interface has no analytics or remote font requests. First dependency installation and missing TeX package installation can require internet access.
+
+The local API checks the exact loopback host, Origin/Fetch Metadata and a per-launch session cookie (HttpOnly, SameSite=Strict). This blocks ordinary cross-site API requests and DNS-rebinding hosts. It is a local access guard, not a user account system or protection against malicious software already running as your user. Native launches supply the session token automatically.
+
+Optional saved-key encryption uses AES-GCM with a random salt/IV and PBKDF2-SHA256 (600,000 iterations). Legacy encrypted keys remain readable; unlock and save settings to upgrade them. Without a master password, new keys stay in tab memory. Unlocked keys remain accessible to app JavaScript, so encryption cannot protect a compromised app or browser. Gemini keys travel in a request header, not the URL; provider errors redact keys.
+
+AI has no filesystem or terminal tools. Reference content is labelled untrusted, remote Markdown images are blocked, and generated external links require confirmation. Prompt injection can still affect model answers; these measures do not guarantee model obedience. Review generated code before compiling.
+
+Compilation disables shell escape, validates paths, restricts risky source primitives (including direct Lua/file I/O), strips unrelated environment secrets and limits requests, files, concurrency, time and compiler output. **This is not an OS sandbox.** Advanced documents using restricted primitives may fail; run only trusted projects. Ordinary pdfLaTeX, XeLaTeX and LuaLaTeX, fontspec, templates and bibliography flows are tested. The desktop browser sandbox does not sandbox the native TeX process.
 
 This is designed as a trusted local workstation. Deploying to Vercel is not supported by the current native-compilation and disk-storage backend; a hosted deployment needs separate storage, authentication and a TeX compilation service. The mobile notice does not change these backend requirements.
 

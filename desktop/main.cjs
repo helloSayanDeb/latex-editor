@@ -3,6 +3,9 @@ const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const net = require('node:net');
+const { randomBytes } = require('node:crypto');
+const sessionToken = randomBytes(32).toString('hex');
+const localFetch = (url, options = {}) => fetch(url, { ...options, headers: { ...options.headers, 'x-texstudio-token': sessionToken } });
 let server, window;
 app.setName('TeXStudio Local');
 app.setPath('userData', path.join(app.getPath('appData'), 'TeXStudio Local'));
@@ -25,7 +28,7 @@ else {
       const log = fs.openSync(path.join(app.getPath('userData'), 'server.log'), 'a');
       server = spawn(process.execPath, [path.join(root, 'server.js')], {
         cwd: root, windowsHide: true, stdio: ['ignore', log, log],
-        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', NODE_ENV: 'production', HOSTNAME: '127.0.0.1', PORT: String(port), TEXSTUDIO_DATA_DIR: app.getPath('userData') },
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', NODE_ENV: 'production', HOSTNAME: '127.0.0.1', PORT: String(port), TEXSTUDIO_PORT: String(port), TEXSTUDIO_SESSION_TOKEN: sessionToken, TEXSTUDIO_DATA_DIR: app.getPath('userData') },
       });
       fs.closeSync(log);
       let exited = false;
@@ -35,7 +38,7 @@ else {
       let ready = false;
       for (let attempt = 0; attempt < 120; attempt++) {
         if (exited) throw new Error('The local server stopped. See server.log in your application data folder.');
-        try { if ((await fetch(origin, { signal: AbortSignal.timeout(1000) })).ok) { ready = true; break; } } catch {}
+        try { if ((await localFetch(origin, { signal: AbortSignal.timeout(1000) })).ok) { ready = true; break; } } catch {}
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       if (!ready) throw new Error('The local server did not start within one minute.');
@@ -50,25 +53,32 @@ else {
       });
       await window.loadURL(origin);
       if (!smoke) {
-        const system = await fetch(origin + '/api/system').then(response => response.json());
+        const system = await localFetch(origin + '/api/system').then(response => response.json());
         if (!Object.values(system.engines || {}).some(Boolean)) {
           const choice = await dialog.showMessageBox(window, { type: 'info', title: 'Install LaTeX to compile papers', message: 'Your editor is ready. PDF compilation needs a TeX distribution.', detail: process.platform === 'win32' ? 'Install MiKTeX using its installer, then restart TeXStudio Local.' : 'Install MacTeX, then restart TeXStudio Local.', buttons: ['Open TeX installer website', 'Continue editing'], defaultId: 0, cancelId: 1 });
           if (choice.response === 0) await shell.openExternal(process.platform === 'win32' ? 'https://miktex.org/download' : 'https://www.tug.org/mactex/');
         }
       }
       if (smoke) {
-        const projects = await fetch(origin + '/api/projects').then(r => r.json());
+        const projects = await localFetch(origin + '/api/projects').then(r => r.json());
         if (!projects.ok || !fs.existsSync(path.join(app.getPath('userData'), 'projects', 'default', 'main.tex'))) throw new Error('Persistent project storage failed.');
-        const html = await fetch(origin).then(response => response.text());
+        const html = await localFetch(origin).then(response => response.text());
         const asset = html.match(/src="([^\"]*\/_next\/static\/[^\"]+)"/);
-        if (!asset || !(await fetch(origin + asset[1])).ok) throw new Error('Client assets are missing.');
-        const spelling = await fetch(origin + '/api/spelling', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document: 'A misspelledd word.' }) }).then(response => response.json());
+        if (!asset || !(await localFetch(origin + asset[1])).ok) throw new Error('Client assets are missing.');
+        const spelling = await localFetch(origin + '/api/spelling', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document: 'A misspelledd word.' }) }).then(response => response.json());
         if (!spelling.issues?.length) throw new Error('Packaged spelling dictionary failed.');
-        const git = await fetch(origin + '/api/git', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'init', projectId: 'default' }) }).then(response => response.json());
+        const git = await localFetch(origin + '/api/git', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'init', projectId: 'default' }) }).then(response => response.json());
         if (!git.ok || !fs.existsSync(path.join(app.getPath('userData'), 'projects', 'default', '.git'))) throw new Error('Packaged Git uses an incorrect project directory.');
         const engines = [];
         for (const engine of process.env.TEXSTUDIO_TEST_SKIP_TEX === '1' ? [] : ['pdflatex', 'xelatex', 'lualatex']) {
-          const response = await fetch(origin + '/api/compile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ engine, files: { 'main.tex': '\\documentclass{article}\n\\begin{document}Desktop installer test\\end{document}' } }) });
+          // The renderer may still be compiling its welcome document. Respect the single-job guard.
+          let response;
+          for (let attempt = 0; attempt < 120; attempt++) {
+            response = await localFetch(origin + '/api/compile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ engine, files: { 'main.tex': '\\documentclass{article}\n\\begin{document}Desktop installer test\\end{document}' } }) });
+            if (response.status !== 429) break;
+            await response.body.cancel();
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
           if (!response.ok || !response.headers.get('content-type')?.includes('application/pdf')) throw new Error('Packaged compilation failed: ' + await response.text());
           if (Buffer.from(await response.arrayBuffer()).subarray(0, 5).toString() !== '%PDF-') throw new Error('Invalid PDF output.');
           engines.push(engine);
@@ -77,7 +87,7 @@ else {
         app.quit();
       }
     } catch (error) {
-      if (smoke) { console.error(error); app.exit(1); }
+      if (smoke) { console.error(error); server?.kill(); app.exit(1); }
       else { dialog.showErrorBox('TeXStudio Local could not start', error.message + '\nClose another TeXStudio desktop instance if port 2304 is in use.'); app.quit(); }
     }
   });

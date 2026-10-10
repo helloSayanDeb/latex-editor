@@ -1,3 +1,4 @@
+require('./local-test-session.cjs');
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const base='http://127.0.0.1:2303';

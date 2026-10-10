@@ -1,3 +1,4 @@
+import { readRequestJSON } from '@/lib/request-limits';
 import { NextRequest, NextResponse } from 'next/server';
 import { listProjects, saveProject, ensureDefaultProject, WELCOME_LATEX_CONTENT, WELCOME_BIB_CONTENT } from '@/lib/project-store';
 import { sanitizeProjectId } from '@/lib/security';
@@ -15,7 +16,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await readRequestJSON(req);
     const name = typeof body.name === 'string' ? body.name.trim().slice(0,100) || 'Untitled Project' : 'Untitled Project';
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0,60) || 'project';
     const id = sanitizeProjectId(slug) + '-' + crypto.randomUUID();

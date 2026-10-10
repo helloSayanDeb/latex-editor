@@ -1,3 +1,4 @@
+import { readRequestJSON } from '@/lib/request-limits';
 import { NextRequest, NextResponse } from 'next/server';
 import { listSnapshots, createSnapshot, deleteSnapshot } from '@/lib/project-store';
 
@@ -20,7 +21,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const body = await req.json();
+    const body = await readRequestJSON(req);
     const snapshot = createSnapshot(id, {
       name: body.name,
       type: body.type === 'manual' ? 'manual' : 'auto',

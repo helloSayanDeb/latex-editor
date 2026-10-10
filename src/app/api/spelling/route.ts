@@ -1,3 +1,4 @@
+import { readRequestJSON } from '@/lib/request-limits';
 import { NextRequest, NextResponse } from 'next/server';
 import dictionary from 'dictionary-en';
 import nspell from 'nspell';
@@ -7,7 +8,7 @@ const spell = nspell(dictionary);
 for (const word of ['LaTeX', 'TeX', 'BibTeX', 'TikZ', 'pdfLaTeX', 'XeLaTeX', 'LuaLaTeX']) spell.add(word);
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await readRequestJSON(request);
     if (typeof body.word === 'string' && /^[A-Za-z'’]{1,60}$/.test(body.word)) {
       return NextResponse.json({ suggestions: spell.suggest(body.word).slice(0, 6) });
     }

@@ -8,22 +8,27 @@ import { promisify } from 'util';
 import { configureTexEnv } from '@/lib/tex-env';
 import { sanitizePath, sanitizeProjectId, validateFilename } from '@/lib/security';
 import { logAuditEvent } from '@/lib/audit-logger';
+import { readRequestJSON, readRequestText, acquireJob } from '@/lib/request-limits';
+import { compilerEnvironment, validateCompileFiles } from '@/lib/compile-policy';
 const execute = promisify(execFile);
 
 export async function POST(req: NextRequest) {
+  const release = acquireJob('compile', 1);
+  if (!release) return NextResponse.json({ success: false, log: 'Another compilation is running. Try again when it finishes.' }, { status: 429, headers: { 'Retry-After': '3' } });
   configureTexEnv();
   const start = Date.now();
   let tmpDir = '';
   let projectId = 'default';
   let engine = 'pdflatex';
   try {
-    const body = req.headers.get('content-type')?.includes('application/json') ? await req.json() : { files: { 'main.tex': await req.text() } };
+    const body = req.headers.get('content-type')?.includes('application/json') ? await readRequestJSON(req) : { files: { 'main.tex': await readRequestText(req) } };
     const files = body.files as Record<string,string>;
     const mainFile = sanitizePath(body.mainFile || 'main.tex');
     projectId = sanitizeProjectId(body.projectId || 'default');
     engine = body.engine || 'pdflatex';
     if (!['pdflatex','xelatex','lualatex'].includes(engine)) throw new Error('Unsupported compiler.');
     if (!files || typeof files !== 'object' || Array.isArray(files)) throw new Error('Project files are required.');
+    validateCompileFiles(files);
     for (const [name, content] of Object.entries(files)) {
       if (!validateFilename(name) || typeof content !== 'string') throw new Error('Invalid file: ' + name);
     }
@@ -36,8 +41,13 @@ export async function POST(req: NextRequest) {
     }
     const baseName = path.parse(mainFile).name;
     // No shell interpolation. TeX file IO restrictions complement disabled shell escape.
-    const env = { ...process.env, openin_any: 'p', openout_any: 'p' };
-    const run = (tool:string, args:string[]) => execute(tool,args,{cwd:tmpDir,timeout:90000,maxBuffer:8*1024*1024,env,windowsHide:true});
+    const env = compilerEnvironment(process.env, tmpDir);
+    const deadline = Date.now() + 120000;
+    const run = (tool:string, args:string[]) => {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error('Compilation exceeded the two-minute job limit.');
+      return execute(tool,args,{cwd:tmpDir,timeout:Math.min(90000, remaining),maxBuffer:4*1024*1024,env,windowsHide:true});
+    };
     const compile = () => run(engine,['-no-shell-escape','-interaction=nonstopmode','-halt-on-error',...(body.synctex === false ? [] : ['-synctex=1']), './' + mainFile]);
     try {
       await compile();
@@ -75,6 +85,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return NextResponse.json({success:false,log:(err as Error).message},{status:400});
   } finally {
+    release();
     if (tmpDir) {
       const resolved = path.resolve(/* turbopackIgnore: true */ tmpDir);
       if (resolved.startsWith(path.resolve(os.tmpdir()) + path.sep) && path.basename(resolved).startsWith('latex-')) {

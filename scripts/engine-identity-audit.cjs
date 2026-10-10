@@ -1,3 +1,4 @@
+require('./local-test-session.cjs');
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const pdfjs=require('pdfjs-dist/legacy/build/pdf.js');

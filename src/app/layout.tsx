@@ -23,8 +23,6 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="dot-grid-bg text-slate-100 antialiased overflow-hidden select-none">
         {children}

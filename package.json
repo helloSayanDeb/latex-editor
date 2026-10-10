@@ -1,12 +1,12 @@
 {
   "name": "latex-editor",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "private": true,
   "description": "High-performance personal LaTeX workstation with offline vector PDF preview and local AI assistant",
   "scripts": {
-    "dev": "next dev -p 2303",
+    "dev": "node scripts/launch-local.cjs dev",
     "build": "next build",
-    "start": "next start -p 2303",
+    "start": "node scripts/launch-local.cjs start",
     "lint": "eslint",
     "test": "node scripts/smoke-test.js",
     "desktop:prepare": "npm run build && node scripts/prepare-desktop.cjs",

@@ -1,3 +1,4 @@
+import { readRequestJSON } from '@/lib/request-limits';
 import { NextRequest, NextResponse } from 'next/server';
 import archiver from 'archiver';
 import { sanitizePath, validateFilename } from '@/lib/security';
@@ -6,7 +7,7 @@ import { PassThrough } from 'stream';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await readRequestJSON(req);
     const files: Record<string, string> = body.files || {};
     const projectName = (body.projectName || 'latex-project').replace(/[^a-zA-Z0-9_-]/g, '_');
 

@@ -2,10 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Dropdown } from '@/components/Dropdown';
+import { Checkbox } from '@/components/Checkbox';
 import { resolveAIConfig } from '@/lib/ai-config';
-import { contextualPrompt, latexBlocks, validEditTarget, type AIEditTarget } from '@/lib/ai-conversation';
+import { latexBlocks, validEditTarget, type AIEditTarget } from '@/lib/ai-conversation';
 import { PromptCarousel } from './PromptCarousel';
 import { ChatMarkdown } from './ChatMarkdown';
+import { cloudVisionSupport, prepareReferenceImage, type AIImage, type AIModel } from '@/lib/ai-images';
+import { sharedSource, conversationScope, type SourceSharing } from '@/lib/ai-privacy';
 import {
   Sparkles,
   Send,
@@ -20,6 +23,10 @@ import {
   AlertCircle,
   HelpCircle,
   ArrowRight,
+  ImagePlus,
+  Trash2,
+  ChevronDown,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   AIConfig,
@@ -47,6 +54,7 @@ interface Message {
   timestamp: string;
   editTarget?: AIEditTarget;
   error?: boolean;
+  image?: AIImage;
 }
 
 interface AIAssistantDrawerProps {
@@ -82,7 +90,21 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
   ]);
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
-  const [editSource, setEditSource] = useState(true);
+  const [image, setImage] = useState<AIImage | null>(null);
+  const [imagePreparing, setImagePreparing] = useState(false);
+  const [imageError, setImageError] = useState('');
+  const imageInput = useRef<HTMLInputElement>(null);
+  const imageEpoch = useRef(0);
+  const [editSource, setEditSource] = useState(false);
+  const [sourceSharing, setSourceSharing] = useState<SourceSharing>('none');
+  const [includeHistory, setIncludeHistory] = useState(true);
+  const [showSourcePreview, setShowSourcePreview] = useState(false);
+  const [sharingOpen, setSharingOpen] = useState(false);
+  const conversations = useRef<Record<string, Message[]>>({});
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const scopeRef = useRef('');
+  const requestEpoch = useRef(0);
   const [showSettings, setShowSettings] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const conversationEnd = useRef<HTMLDivElement>(null);
@@ -105,15 +127,53 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
   const profiles = useRef<Partial<Record<AIConfig['provider'], ProviderProfile>>>({});
   const isLocal = provider === 'lmstudio' || provider === 'ollama';
   const [models, setModels] = useState<string[]>([]);
+  const [modelDetails, setModelDetails] = useState<AIModel[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState('');
   const [refreshModels, setRefreshModels] = useState(0);
+  const vision = isLocal ? modelDetails.find(model => model.id === modelName)?.vision || 'unknown' : cloudVisionSupport(provider, modelName, baseUrl);
+  const imageAllowed = vision === 'vision' && !modelsLoading;
+  const imageHint = imageAllowed ? 'Attach reference image · PNG, JPEG or WebP, up to 8 MB' : vision === 'text' ? 'This model accepts text only. Select a vision model to attach an image.' : 'Image support is unverified. Select a model with verified vision support.';
+  const scope = conversationScope(provider, baseUrl);
+  useEffect(() => {
+    if (scopeRef.current === scope) return;
+    if (scopeRef.current) conversations.current[scopeRef.current] = messagesRef.current;
+    scopeRef.current = scope;
+    requestEpoch.current++;
+    setLoading(false); setPrompt(''); setEditSource(false); setSourceSharing('none'); setShowSourcePreview(false);
+    setMessages(conversations.current[scope] || [{ id: 'welcome', sender: 'assistant', content: 'TeX Sage helps with LaTeX and reference images. Choose what to share below. I cannot inspect your computer or other projects.', isAcademic: true, timestamp: new Date().toLocaleTimeString() }]);
+  }, [scope]);
+  useEffect(() => { imageEpoch.current++; setImage(null); setImageError(''); setImagePreparing(false); }, [provider, modelName, baseUrl]);
+
+  const attachImage = async (file?: File) => {
+    if (!file || !imageAllowed || loading) return;
+    const epoch = ++imageEpoch.current;
+    setImagePreparing(true); setImageError('');
+    try {
+      const prepared = await prepareReferenceImage(file);
+      if (epoch === imageEpoch.current) setImage(prepared);
+    } catch (error) { if (epoch === imageEpoch.current) setImageError((error as Error).message); }
+    finally { if (epoch === imageEpoch.current) setImagePreparing(false); }
+  };
+
+  const pasteImage = (event: React.ClipboardEvent<HTMLElement>) => {
+    if (showSettings) return;
+    const files = Array.from(event.clipboardData.items).filter(item => item.kind === 'file').map(item => item.getAsFile()).filter((file): file is File => Boolean(file));
+    if (!files.length) return; // Leave ordinary text paste to the focused field.
+    event.preventDefault();
+    if (files.length !== 1 || !files[0].type.startsWith('image/')) { setImageError('Paste one PNG, JPEG or WebP image. Other attachments are not supported.'); return; }
+    if (!imageAllowed) { setImageError(imageHint); return; }
+    if (loading || imagePreparing) { setImageError('Wait for the current request or image preparation to finish.'); return; }
+    void attachImage(files[0]);
+  };
 
   // Load config on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       profiles.current = JSON.parse(localStorage.getItem('texstudio_ai_profiles') || '{}');
+      // Remove any plaintext keys saved by an older build; keep them only in this tab.
+      localStorage.setItem('texstudio_ai_profiles', JSON.stringify(Object.fromEntries(Object.entries(profiles.current).map(([name, profile]) => [name, { encryptedKey: profile.encryptedKey || '', baseUrl: profile.baseUrl || '', modelName: profile.modelName || '' }]))));
       const savedConfig = localStorage.getItem('texstudio_ai_config');
       if (savedConfig) {
         const parsed = JSON.parse(savedConfig);
@@ -159,6 +219,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
         if (!response.ok) throw new Error(data.error || 'Could not detect models.');
         if (controller.signal.aborted) return;
         setModels(data.models);
+        setModelDetails(data.modelDetails || []);
         setModelName(current => data.models.includes(current) ? current : data.models[0] || '');
         if (!data.models.length) setModelsError('Server connected, but no chat models are available. Load a model and refresh.');
       } catch (error) { if (!controller.signal.aborted) setModelsError((error as Error).message); }
@@ -172,6 +233,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
       let cipher = encryptedKey;
       if (isLocal) cipher = '';
       else if (apiKey) cipher = masterPass ? await encryptApiKey(apiKey, masterPass) : '';
+      else if (cipher && masterPass && !cipher.startsWith('v3:')) cipher = await encryptApiKey(await decryptApiKey(cipher, masterPass), masterPass);
       localStorage.setItem('texstudio_ai_config', JSON.stringify({ provider, encryptedKey: cipher, baseUrl, modelName }));
       profiles.current[provider] = { apiKey: isLocal ? '' : apiKey, encryptedKey: cipher, baseUrl, modelName };
       localStorage.setItem('texstudio_ai_profiles', JSON.stringify(Object.fromEntries(Object.entries(profiles.current).map(([name, profile]) => [name, { encryptedKey: profile.encryptedKey || '', baseUrl: profile.baseUrl || '', modelName: profile.modelName || '' }]))));
@@ -182,26 +244,43 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
     } catch (err) { setSettingsMessage((err as Error).message); }
   };
 
+  const requestTarget = (finalizePending = false) => {
+    const current = sourceSharing === 'none' ? null : getEditTarget(finalizePending);
+    const previous = messages.findLast(message => message.sender === 'assistant' && !message.error && message.editTarget)?.editTarget;
+    const target = sourceSharing === 'selection' && !selectedText && current && previous && validEditTarget(previous, current.project, current.file, current.document) ? previous : current;
+    return sourceSharing === 'document' && target ? { ...target, from: 0, to: target.document.length } : target;
+  };
+
   const handleSend = async () => {
     const trimmed = prompt.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || loading || imagePreparing || (image && !imageAllowed)) return;
     if (isLocal && (modelsLoading || !models.includes(modelName))) {
       setSettingsMessage(modelsError || 'Select an available local model before sending.');
       setShowSettings(true);
       return;
     }
 
-    const currentTarget = getEditTarget(editSource);
-    const previousTarget = messages.findLast(message => message.sender === 'assistant' && !message.error && message.editTarget)?.editTarget;
-    const target = !selectedText && currentTarget && previousTarget && validEditTarget(previousTarget, currentTarget.project, currentTarget.file, currentTarget.document) ? previousTarget : currentTarget;
+    if (editSource && sourceSharing === 'none') {
+      setSettingsMessage('Choose Selection or Active document to request an inline edit. No source is shared in Ask mode.');
+      return;
+    }
+    const target = requestTarget(editSource);
+    const shared = sharedSource(sourceSharing, selectedText, target);
+    if (sourceSharing !== 'none' && !shared) {
+      setSettingsMessage(sourceSharing === 'selection' ? 'Select source text first, or choose No source / Active document.' : 'The active document is empty or unavailable. Choose No source to generate new code.');
+      return;
+    }
     if (editSource && !target) {
       setSettingsMessage('Source is unavailable. Select the source file before requesting an edit.');
       return;
     }
-    const requestSelection = target && (target.from !== 0 || target.to !== target.document.length) ? target.document.slice(target.from, target.to) : selectedText;
+    const requestSelection = shared;
     const requestFile = target?.file || activeFile;
-    const academic = isAcademicPrompt(trimmed) || Boolean(requestSelection) || messages.some(message => message.id !== "welcome" && message.isAcademic);
-    const history = messages.filter(message => message.id !== "welcome" && !message.error).map(message => ({ role: message.sender, content: message.sender === "user" ? contextualPrompt(message.content, { selectedText: message.contextSnippet, activeFile: message.editTarget?.file }) : message.content }));
+    const requestImage = image;
+    const academic = isAcademicPrompt(trimmed) || Boolean(requestSelection || requestImage) || messages.some(message => message.id !== "welcome" && message.isAcademic);
+    // Historical raw attachments are not reattached. Prior answers can still contain source text.
+    const history = includeHistory ? messages.filter(message => message.id !== 'welcome' && !message.error).map(message => ({ role: message.sender, content: message.content })) : [];
+    const epoch = ++requestEpoch.current;
     const userMsg: Message = {
       id: Date.now().toString(),
       sender: 'user',
@@ -210,20 +289,23 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
       contextSnippet: requestSelection || undefined,
       editTarget: target || undefined,
       timestamp: new Date().toLocaleTimeString(),
+      image: requestImage || undefined,
     };
 
     setMessages(prev => [...prev, userMsg]);
     setPrompt('');
+    setImage(null);
     setLoading(true);
 
     try {
       const config = await resolveAIConfig(provider, { apiKey, encryptedKey, masterPass, baseUrl, modelName }, decryptApiKey);
 
       const responseText = await sendAIPrompt(config, trimmed, {
-        selectedText: requestSelection || undefined,
-        fullDocument: requestSelection ? undefined : target?.document,
-        activeFile: requestFile,
-      }, history);
+        selectedText: sourceSharing === 'selection' ? requestSelection : undefined,
+        fullDocument: sourceSharing === 'document' ? requestSelection : undefined,
+        activeFile: sourceSharing === 'none' ? undefined : requestFile,
+      }, history, requestImage ? [requestImage] : []);
+      if (epoch !== requestEpoch.current) return;
 
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -242,6 +324,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
         if (!docked) onClose();
       }
     } catch (err) {
+      if (epoch !== requestEpoch.current) return;
       const errMsg: Message = {
         error: true,
         id: (Date.now() + 1).toString(),
@@ -252,7 +335,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
       };
       setMessages(prev => [...prev, errMsg]);
     } finally {
-      setLoading(false);
+      if (epoch === requestEpoch.current) setLoading(false);
     }
   };
 
@@ -265,7 +348,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <section id="tex-sage-panel" className="sage-panel" aria-label="TeX Sage assistant" onKeyDown={event => {
+    <section id="tex-sage-panel" className="sage-panel" aria-label="TeX Sage assistant" onPaste={pasteImage} onKeyDown={event => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       if ((event.target as HTMLElement).closest('.custom-select')?.querySelector('[aria-expanded="true"]')) return;
       event.preventDefault(); onClose();
@@ -289,6 +372,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
         </div>
 
         <div className="flex items-center gap-1">
+          <button type="button" className="btn-icon" title="Clear this provider's conversation" aria-label="Clear conversation" onClick={() => { requestEpoch.current++; imageEpoch.current++; setMessages(messages.filter(message => message.id === 'welcome')); setImage(null); setPrompt(''); setLoading(false); setImagePreparing(false); }}><Trash2 size={15} /></button>
           <button
             onClick={() => setShowSettings(!showSettings)}
             className="btn-icon"
@@ -304,7 +388,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
 
       {/* Settings Modal / Overlay inside drawer */}
       {showSettings ? (
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs">
+        <div className="sage-settings flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs">
           <div className="flex items-center justify-between pb-2 border-b border-white/10">
             <span className="font-bold text-sm text-white">AI Provider Settings</span>
             <button
@@ -350,7 +434,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
           )}
 
           {isLocal ? <div className="local-model-settings">
-            <Dropdown label="Local model" value={modelName} options={models.map(model => ({ value: model, label: model }))} onChange={setModelName} disabled={modelsLoading || !models.length} placeholder={modelsLoading ? 'Detecting models…' : 'No models detected'} />
+            <Dropdown label="Local model" value={modelName} options={models.map(model => { const detail = modelDetails.find(item => item.id === model); return { value: model, label: detail?.label || model, capability: detail?.vision || 'unknown', detail: `${model} · ${detail?.loaded ? 'Loaded' : 'Available on this computer'}` }; })} onChange={setModelName} disabled={modelsLoading || !models.length} placeholder={modelsLoading ? 'Detecting models…' : 'No models detected'} />
             <div className="local-model-status"><span role="status">{modelsLoading ? 'Connecting to your local server…' : modelsError || `${models.length} chat ${models.length === 1 ? 'model' : 'models'} detected`}</span><button type="button" className="btn-secondary" onClick={() => setRefreshModels(value => value + 1)} disabled={modelsLoading}>Refresh</button></div>
           </div> : <label className="flex flex-col gap-1">
             <span className="text-slate-300 font-semibold">Model Name</span>
@@ -398,6 +482,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
                     wordBreak: 'break-word',
                   }}
                 >
+                  {msg.image && <img className="sage-message-image" src={`data:image/png;base64,${msg.image.data}`} alt="Attached reference" />}
                   {msg.sender === 'assistant' ? <ChatMarkdown content={msg.content} /> : <div className="whitespace-pre-wrap">{msg.content}</div>}
 
                   {/* Actions for assistant messages containing code */}
@@ -440,7 +525,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
           <PromptCarousel onSelect={setPrompt} />
 
           {/* Selection context indicator */}
-          {selectedText && (
+          {selectedText && sourceSharing === 'selection' && (
             <div className="mx-3 my-1 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-between text-xs text-indigo-300">
               <div className="flex items-center gap-1.5 truncate">
                 <FileText size={13} />
@@ -449,20 +534,36 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
                 </span>
               </div>
               <span className="text-[10px] bg-indigo-500/20 text-indigo-200 px-1.5 py-0.5 rounded">
-                Auto-Attached
+                Included
               </span>
             </div>
           )}
 
           {/* Input Area */}
+          <button type="button" className="sage-sharing-disclosure" aria-expanded={sharingOpen} aria-controls="sage-sharing-options" onClick={() => setSharingOpen(value => !value)}>
+            <SlidersHorizontal size={13} /><span>Sharing</span><small>{sourceSharing === 'none' ? 'No source' : sourceSharing === 'selection' ? 'Selection' : 'Active document'} · Chat {includeHistory ? 'on' : 'off'}</small><ChevronDown size={14} className={sharingOpen ? 'is-open' : ''} />
+          </button>
+          {sharingOpen && <div id="sage-sharing-options" className="sage-context-controls">
+            <Dropdown label="Source context" value={sourceSharing} options={[{ value: 'none', label: 'No source', detail: 'Only your message and enabled recent chat' }, { value: 'selection', label: 'Selection', detail: 'Selected text or the last valid edit range' }, { value: 'document', label: 'Active document', detail: 'Share the active file; never other project files' }]} onChange={value => { setSourceSharing(value as SourceSharing); if (value === 'none') setEditSource(false); setShowSourcePreview(false); setSettingsMessage(''); }} />
+            <Checkbox checked={includeHistory} onChange={setIncludeHistory}>Include recent chat</Checkbox>
+            <small>Recent replies may contain previously shared source. Images are not resent.</small>
+            {sourceSharing !== 'none' && <button type="button" className="sage-source-preview-toggle" onClick={() => setShowSourcePreview(value => !value)} aria-expanded={showSourcePreview}>{showSourcePreview ? 'Hide' : 'Preview'} source to share</button>}
+            {showSourcePreview && <pre className="sage-source-preview">{sharedSource(sourceSharing, selectedText, requestTarget()) || 'No source selected.'}</pre>}
+          </div>}
           <div className="sage-edit-mode" role="group" aria-label="Assistant mode">
             <button type="button" aria-pressed={!editSource} onClick={() => setEditSource(false)}>Ask</button>
-            <button type="button" aria-pressed={editSource} onClick={() => setEditSource(true)}>Edit source</button>
+            <button type="button" aria-pressed={editSource} disabled={sourceSharing === 'none'} title={sourceSharing === 'none' ? 'Choose source context before editing' : 'Preview changes inline'} onClick={() => setEditSource(true)}>Edit source</button>
             <span>{editSource ? 'Compile accepts pending changes' : 'Chat without changing the editor'}</span>
           </div>
           {settingsMessage && <p className="px-3 text-xs text-amber-300" role="status">{settingsMessage}</p>}
+          {image && <div className="sage-image-preview"><img src={`data:image/png;base64,${image.data}`} alt="Reference ready to send" /><span>Reference image<small>{image.width} × {image.height} · metadata removed</small></span><button type="button" className="btn-icon" aria-label="Remove reference image" onClick={() => setImage(null)}><Trash2 size={15} /></button></div>}
+          {imageError && <p className="sage-image-error" role="alert">{imageError}</p>}
+          <p className="sage-sharing-note">{isLocal ? 'Sent to your local model server' : `Sent to ${provider === 'gemini' ? 'Google Gemini' : 'OpenAI'}`}{image ? ' · image included once' : ''}</p>
           <div className="p-3 border-t border-white/10 flex items-center gap-2">
+            <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void attachImage(file); }} />
+            <button type="button" className="btn-icon sage-attach-image" aria-label="Attach reference image" title={imageHint} disabled={!imageAllowed || loading || imagePreparing} onClick={() => imageInput.current?.click()}><ImagePlus size={18} /></button>
             <textarea
+              aria-label="Message TeX Sage"
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               onKeyDown={e => {
@@ -474,14 +575,15 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
               placeholder={
                 selectedText
                   ? 'Ask AI about your selected code snippet...'
-                  : 'Ask AI LaTeX assistant (e.g., generate a 3x3 matrix)...'
+                  : 'Ask TeX Sage… or paste a reference image'
               }
               rows={2}
               className="input-dark flex-1 resize-none text-xs"
             />
             <button
               onClick={handleSend}
-              disabled={!prompt.trim() || loading}
+              disabled={!prompt.trim() || loading || imagePreparing || Boolean(image && !imageAllowed)}
+              aria-label="Send message"
               className="btn-primary"
               style={{ height: 48, width: 44, padding: 0, justifyContent: 'center' }}
             >

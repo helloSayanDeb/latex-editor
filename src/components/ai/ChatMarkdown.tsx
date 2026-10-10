@@ -7,6 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import rehypeKatex from 'rehype-katex';
+import { useAppDialog } from '@/components/AppDialog';
 
 // Normalize common model-generated TeX delimiters only outside fenced/inline code.
 export function normalizeChatMath(text: string) {
@@ -19,6 +20,7 @@ export function normalizeChatMath(text: string) {
 }
 
 export const ChatMarkdown = memo(function ChatMarkdown({ content }: { content: string }) {
+  const { ask, dialog } = useAppDialog();
   return <div className="chat-markdown">
     <Markdown
       remarkPlugins={[remarkGfm, remarkMath]}
@@ -30,8 +32,13 @@ export const ChatMarkdown = memo(function ChatMarkdown({ content }: { content: s
       components={{
         // Images from generated messages must not make unsolicited network requests.
         img: ({ alt }) => <span className="chat-image-description">{alt || 'Image'}</span>,
-        a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
+        // A button prevents middle-click, drag or context-menu navigation bypassing confirmation.
+        a: ({ children, href }) => !href || !/^https?:\/\//i.test(href) ? <span>{children}</span> : <button type="button" className="chat-reference-link" title={href} onClick={async () => {
+          const confirmed = await ask({ title: 'Open external reference?', message: `This link was suggested by AI. Its address or query may contain shared text. Check the complete destination before opening:\n\n${href}`, confirmLabel: 'Open link' });
+          if (confirmed) window.open(href, '_blank', 'noopener,noreferrer');
+        }}>{children}</button>,
       }}
     >{normalizeChatMath(content)}</Markdown>
+    {dialog}
   </div>;
 });

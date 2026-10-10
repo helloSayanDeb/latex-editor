@@ -20,7 +20,7 @@ const {history, undo, isolateHistory} = require('@codemirror/commands');
         const body = JSON.parse(options.body);
         const messages = provider === 'gemini' ? body.contents.map(turn => ({role:turn.role === 'model' ? 'assistant' : turn.role,content:turn.parts[0].text})) : body.messages.slice(1);
         assert.deepEqual(messages.slice(0,2), turns);
-        assert.match(messages[2].content, /Current document: main.tex/);
+        assert.match(messages[2].content, /"kind":"active-document","file":"main.tex"/);
         assert.match(messages[2].content, /Add another row/);
         if (provider === 'ollama') assert.match(url, /\/api\/chat$/);
         return {ok:true,json:async()=>provider === 'gemini' ? {candidates:[{content:{parts:[{text:'updated'}]}}]} : provider === 'ollama' ? {message:{content:'updated'}} : {choices:[{message:{content:'updated'}}]}};
