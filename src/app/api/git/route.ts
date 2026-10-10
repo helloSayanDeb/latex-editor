@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
+import { PROJECTS_DIR } from '@/lib/data-path';
 import fs from 'fs';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action, projectId = 'default', message, file } = body;
     const cleanId = sanitizeProjectId(projectId);
-    const projDir = path.join(process.cwd(), 'projects', cleanId);
+    const projDir = path.join(PROJECTS_DIR, cleanId);
 
     if (!fs.existsSync(projDir)) {
       return NextResponse.json({ ok: false, error: 'Project directory not found' }, { status: 404 });

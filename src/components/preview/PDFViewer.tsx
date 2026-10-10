@@ -87,7 +87,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
         if (!pdfjs || !active) return;
         const arrayBuffer = await pdfBlob!.arrayBuffer();
         if (!active) return;
-        loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+        loadingTask = pdfjs.getDocument({ data: arrayBuffer, isEvalSupported: false });
         const doc = await loadingTask.promise;
 
         if (active) {

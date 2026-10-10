@@ -11,7 +11,8 @@ export interface AuditEntry {
   details?: Record<string, unknown>;
 }
 
-const AUDIT_DIR = path.join(process.cwd(), 'projects', '.audit');
+import { PROJECTS_DIR } from './data-path';
+const AUDIT_DIR = path.join(PROJECTS_DIR, '.audit');
 const AUDIT_FILE = path.join(AUDIT_DIR, 'audit.log');
 
 export function logAuditEvent(entry: Omit<AuditEntry, 'timestamp'>): void {

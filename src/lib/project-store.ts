@@ -27,7 +27,7 @@ export interface SnapshotItem {
   sizeBytes: number;
 }
 
-const PROJECTS_DIR = path.join(process.cwd(), 'projects');
+import { PROJECTS_DIR } from './data-path';
 
 export function ensureProjectsDir(): void {
   if (!fs.existsSync(PROJECTS_DIR)) {

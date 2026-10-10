@@ -1,3 +1,4 @@
+import { PROJECTS_DIR } from '@/lib/data-path';
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
     if (sanitizePath(pdfFile) !== pdfFile || !pdfFile.endsWith('.pdf') || sanitizePath(sourceFile) !== sourceFile || !sourceFile.endsWith('.tex')) {
       return NextResponse.json({ ok: false, error: 'Invalid SyncTeX filename' }, { status: 400 });
     }
-    const cacheDir = path.join(process.cwd(), 'projects', cleanId, '.synctex_cache');
+    const cacheDir = path.join(PROJECTS_DIR, cleanId, '.synctex_cache');
 
     if (!fs.existsSync(cacheDir)) {
       return NextResponse.json(

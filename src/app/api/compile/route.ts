@@ -1,3 +1,4 @@
+import { PROJECTS_DIR } from '@/lib/data-path';
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
@@ -62,8 +63,8 @@ export async function POST(req: NextRequest) {
     const pdf = fs.readFileSync(pdfPath);
     const compilerBanner = fs.readFileSync(path.join(tmpDir,baseName+'.log'),'utf8').split(/\r?\n/)[0].replace(/[^\x20-\x7e]/g,'').slice(0,240);
     const synctex = path.join(tmpDir,baseName+'.synctex.gz');
-    if (fs.existsSync(synctex) && fs.existsSync(path.join(process.cwd(),'projects',projectId,'project.json'))) {
-      const cache = path.join(process.cwd(),'projects',projectId,'.synctex_cache');
+    if (fs.existsSync(synctex) && fs.existsSync(path.join(PROJECTS_DIR,projectId,'project.json'))) {
+      const cache = path.join(PROJECTS_DIR,projectId,'.synctex_cache');
       fs.mkdirSync(cache,{recursive:true});
       fs.copyFileSync(pdfPath,path.join(cache,baseName+'.pdf'));
       fs.copyFileSync(synctex,path.join(cache,baseName+'.synctex.gz'));
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({success:false,log:(err as Error).message},{status:400});
   } finally {
     if (tmpDir) {
-      const resolved = path.resolve(tmpDir);
+      const resolved = path.resolve(/* turbopackIgnore: true */ tmpDir);
       if (resolved.startsWith(path.resolve(os.tmpdir()) + path.sep) && path.basename(resolved).startsWith('latex-')) {
         try { fs.rmSync(resolved,{recursive:true,force:true,maxRetries:3}); } catch { /* OS may still hold a compiler handle. */ }
       }

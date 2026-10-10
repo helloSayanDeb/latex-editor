@@ -57,3 +57,7 @@ projects/
 /docs/*results.json
 /docs/eslint-audit.json
 /docs/*.txt
+
+desktop-server/
+desktop-app/
+dist-desktop/

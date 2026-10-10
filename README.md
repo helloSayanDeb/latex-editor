@@ -1,14 +1,44 @@
 # TeXStudio Local
 
-A personal LaTeX workspace with a CodeMirror editor, PDF preview and TeX Sage assistant. Runs at `http://localhost:2303` using a local Node.js server and your installed TeX distribution.
+A personal LaTeX workspace with a CodeMirror editor, PDF preview and TeX Sage assistant. Use the desktop app or run it locally in your browser. Compilation uses your installed TeX distribution.
 
-## Requirements
+## Easy installation
+
+### 1. Desktop app
+
+Download an installer from [GitHub Releases](https://github.com/helloSayanDeb/latex-editor/releases/latest). Windows: run `TeXStudio-Local-windows-x64.exe`, then open the desktop shortcut. macOS: choose the Apple Silicon (`arm64`) or Intel (`x64`) DMG and drag TeXStudio Local to Applications. macOS assets are built by the release workflow; check the release for availability.
+
+The app bundles its runtime and starts/stops its local server automatically. **No Node.js, npm or terminal is needed to open the desktop app.** It listens only on `127.0.0.1:2304`; close another app occupying that port if startup fails. Windows installers are per-user. Installers are currently unsigned, so Windows/macOS may ask you to approve them.
+
+For PDF compilation, install [MiKTeX on Windows](https://miktex.org/download) or [MacTeX on macOS](https://www.tug.org/mactex/), then restart the app. If no engine is found, the desktop app offers the download website. TeX is not bundled; first-time packages/fonts can need internet access. Editing is available without TeX. Local AI remains optional and requires its own running server.
+
+Local versioning additionally needs Git installed. Desktop installation does not install Git, AI models or a TeX distribution.
+
+### 2. One-command installation
+
+Windows: paste this into PowerShell:
+
+```powershell
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/helloSayanDeb/latex-editor/main/install.ps1').Content))
+```
+
+macOS: paste this into Terminal:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/helloSayanDeb/latex-editor/main/install.sh | sh
+```
+
+These scripts download the latest published desktop installer, verify its SHA-256 checksum, install for the current user and launch it. You can inspect [install.ps1](install.ps1) or [install.sh](install.sh) before running. They need internet and an existing release with the appropriate installer and `SHA256SUMS.txt`; they do not install TeX or bypass operating-system security approvals. The macOS script installs to `~/Applications`. Linux currently uses the developer setup below.
+
+Desktop documents and snapshots live under Electron's user-data directory (`%APPDATA%/TeXStudio Local` on Windows; `~/Library/Application Support/TeXStudio Local` on macOS). Updates preserve this data. Existing browser-install projects are not automatically migrated; export/import or copy your projects after closing the app. Browser storage, including AI settings, is separate from your existing `localhost:2303` session.
+
+## Developer requirements
 
 - Node.js **20.9 or newer** and npm.
 - MiKTeX or TeX Live with the engines you want to use: `pdflatex`, `xelatex`, `lualatex`.
 - Packages and fonts required by your documents. Selecting an engine does not install missing fonts or repair invalid LaTeX.
 
-## Start
+## Developer setup
 
 ```sh
 git clone https://github.com/helloSayanDeb/latex-editor.git
@@ -75,6 +105,22 @@ Additional live audit scripts require the running app and, for AI tests, a confi
 ## Architecture and privacy
 
 The current app uses **Next.js 16 App Router, React 19 and TypeScript**, with local route handlers for compilation, projects, snapshots, Git, spelling, exports and local AI. Documents live in `projects/`; that directory, build output and local verification images/PDFs are excluded from Git. The initial vanilla/Express implementation remains in the repository for reference; npm start runs the Next.js app.
+
+The desktop wrapper uses Electron with a sandboxed browser window, Node integration disabled, and an isolated Next.js standalone server. Desktop documents use a writable data folder outside the installation; set `TEXSTUDIO_DATA_DIR` to override the server data root.
+
+## Building installers
+
+Use Node.js 22.12 or newer for desktop packaging, then:
+
+```sh
+npm ci
+node node_modules/electron/install.js
+npm run desktop:build
+```
+
+Build on Windows for NSIS or macOS for DMG. Output goes to `dist-desktop/`. `npm run desktop:prepare` builds and copies the standalone server; `npm run desktop:start` runs it in Electron. The `Desktop installers` GitHub workflow builds Windows x64 and macOS Intel/Apple Silicon; a `v*` tag publishes installers and checksums, while manual dispatch produces downloadable workflow artifacts. macOS builds require verification on an actual Mac; Windows testing does not establish macOS compatibility. Releases are unsigned until signing credentials are configured.
+
+After building a Windows installer, `node scripts/test-desktop.cjs` tests the one-command installer against local release assets, installs into an isolated `dist-desktop/test-installed` directory, and checks bundled runtime startup, static assets, spelling, all three native TeX engines, Git storage, data persistence and server shutdown. This test requires the three engines and Git on the test machine; end users can install only the engines they use. AI/PDF/formatter regression commands above remain separate checks.
 
 Compilation and spell checking run locally. Cloud AI sends your prompts, recent conversation and attached source context to the chosen provider; local AI sends it to your local model server. The interface has no analytics tracking. First dependency installation and missing TeX package installation can require internet access. TeX runs without shell escape and with isolated temporary workspaces and validated file paths.
 
