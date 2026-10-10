@@ -199,3 +199,7 @@ README rewritten for the current Next.js/React implementation, native engines, C
 ## Settings confirmation toast — 11 October
 
 Provider settings success now uses a floating toast instead of a permanent line below Ask/Edit. It auto-dismisses after the user's requested 30 milliseconds; errors and key-storage guidance remain visible where action is needed. Browser save verification found no lingering Settings saved text. Production build and TypeScript passed. Evidence retained locally: settings-toast-dismissed.png.
+
+## Settings toast duration — 11 October
+
+Changed success-toast dismissal from 30 milliseconds to 3 seconds. Browser verification observed the toast immediately after saving and its removal at approximately 3084ms, with no persistent settings-success line. Production build/TypeScript, environment smoke checks, AI conversation, PDF/chat and formatting regressions passed. All three engines passed live identity compilation; LM Studio discovery/inference passed live, while cloud/Ollama provider contracts passed with mocks. Existing middleware/tracing and optional Node PDF canvas-polyfill warnings remain. Evidence retained locally: settings-toast-three-seconds.png.

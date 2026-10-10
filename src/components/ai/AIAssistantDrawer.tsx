@@ -96,7 +96,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
   const [settingsToast, setSettingsToast] = useState<{ id: number; text: string } | null>(null);
   useEffect(() => {
     if (!settingsToast) return;
-    const timer = setTimeout(() => setSettingsToast(null), 30);
+    const timer = setTimeout(() => setSettingsToast(null), 3000);
     return () => clearTimeout(timer);
   }, [settingsToast]);
   const [masterPass, setMasterPass] = useState('');
