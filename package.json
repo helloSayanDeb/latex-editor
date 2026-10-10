@@ -1,6 +1,6 @@
 {
   "name": "latex-editor",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "High-performance personal LaTeX workstation with offline vector PDF preview and local AI assistant",
   "scripts": {

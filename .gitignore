@@ -48,7 +48,7 @@ Thumbs.db
 # Next.js build output and local workspace data
 .next/
 out/
-projects/
+/projects/
 *.tsbuildinfo
 
 # Local verification artifacts

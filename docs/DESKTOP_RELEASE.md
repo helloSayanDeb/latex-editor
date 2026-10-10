@@ -15,4 +15,6 @@ The Windows test machine already had TeX and Git. This is not a clean-machine pr
 
 macOS Intel and Apple Silicon builds run in GitHub Actions, including a packaged startup check for runtime dependencies, assets, spelling and Git. These runners do not test native TeX compilation, Gatekeeper approvals or the complete DMG/one-command installation flow on a user's Mac. Installers are unsigned and not notarized.
 
+The first Apple Silicon CI startup check caught missing project API routes in the Git repository: an unanchored `projects/` ignore rule also excluded `src/app/api/projects/`. Version 2.0.1 anchors the private data directory ignore rule and tracks the project/snapshot API source, so fresh checkouts contain the routes tested locally.
+
 The distribution adds no hosted compilation backend and no mobile-native app. Existing feature limitations in FEATURE_AUDIT.md still apply. PDF.js evaluation is disabled following the upstream workaround for CVE-2024-4367; this release does not claim a complete dependency-security audit or upgrade all legacy dependencies.

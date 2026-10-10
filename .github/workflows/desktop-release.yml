@@ -27,7 +27,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      # Electron is installed explicitly below; no native canvas build is needed.
+      - run: npm ci --ignore-scripts
       - run: node node_modules/electron/install.js
       - run: npm run desktop:prepare
       - run: npx electron-builder --${{ matrix.target }} --${{ matrix.arch }} --publish never
