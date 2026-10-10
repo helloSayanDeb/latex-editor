@@ -61,3 +61,14 @@ out/
 desktop-server/
 desktop-app/
 dist-desktop/
+
+# Local coding-agent instructions and generated Next.js declarations
+/AGENTS.md
+/next-env.d.ts
+
+# Historical workspace notes, examples and one-off maintenance scripts
+/docs/UI_REPAIR_NOTES.md
+/docs/xelatex-corrected-example.tex
+/scripts/refresh-welcome.cjs
+/scripts/navigation-git-audit.cjs
+/scripts/verify-all-apis.js

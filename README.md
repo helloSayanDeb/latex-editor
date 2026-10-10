@@ -104,7 +104,9 @@ Additional live audit scripts require the running app and, for AI tests, a confi
 
 ## Architecture and privacy
 
-The current app uses **Next.js 16 App Router, React 19 and TypeScript**, with local route handlers for compilation, projects, snapshots, Git, spelling, exports and local AI. Documents live in `projects/`; that directory, build output and local verification images/PDFs are excluded from Git. The initial vanilla/Express implementation remains in the repository for reference; npm start runs the Next.js app.
+The current app uses **Next.js 16 App Router, React 19 and TypeScript**, with local route handlers for compilation, projects, snapshots, Git, spelling, exports and local AI. Documents live in `projects/`; that directory, build output and local verification images/PDFs are excluded from Git. `npm start` runs the Next.js app; the obsolete vanilla/Express implementation has been removed.
+
+The public repository includes application source/assets, build configuration, the dependency lockfile, developer setup scripts, desktop installers' source/workflow, reusable regression tests, license and current documentation. These let contributors reproduce and maintain the app. Local coding-agent instructions (`AGENTS.md`), generated Next.js declarations (`next-env.d.ts`), workspace-specific maintenance scripts and historical repair notes are excluded. Next.js regenerates its declaration file during development/build. Installers and checksums are distributed through GitHub Releases; generated binaries are not committed to the source repository.
 
 The desktop wrapper uses Electron with a sandboxed browser window, Node integration disabled, and an isolated Next.js standalone server. Desktop documents use a writable data folder outside the installation; set `TEXSTUDIO_DATA_DIR` to override the server data root.
 
