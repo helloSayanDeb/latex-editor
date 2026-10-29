@@ -98,7 +98,7 @@ See the [development guide](docs/DEVELOPMENT.md) for the source layout and optio
 
 - **Citation/reference completion**: actual keys from project `.bib` files, inline `\bibitem` entries and `\label` commands, with source/metadata previews. Comments and common literal environments are excluded. This is a lightweight index, not a complete TeX/BibTeX interpreter.
 
-- **Show source in PDF**: source-toolbar button, command palette action or **Ctrl/Cmd + Alt + J**. The existing inverse PDF-to-source action remains. Recompile after source changes; locations depend on TeX's SyncTeX map.
+- **PDF-to-source navigation**: Ctrl/Cmd-click a rendered PDF location to jump to its source when the document was compiled with SyncTeX. Recompile after source changes; locations depend on TeX's SyncTeX map.
 
 - **Commands and project search**: **Ctrl/Cmd + Shift + P** opens commands, **Ctrl/Cmd + P** finds files, **Ctrl/Cmd + Shift + S** searches text across the project, and **Ctrl/Cmd + Shift + M** toggles Problems. Project search is literal, optionally case-sensitive, excludes binary attachments and caps results at 300. Keyboard navigation and Escape are supported.
 
@@ -120,113 +120,49 @@ Verification commands: `node scripts/workspace-regressions.cjs` and optional `no
 
 
 
-## Guided terminal installation
+## Install Lemmata
 
+Lemmata runs privately on your own computer and opens in your usual browser. You do not need to install Node.js, npm or Git first.
 
+### Windows
 
-**Already downloaded the repository?** Double-click **Lemmata Setup.cmd** on Windows. On Apple Silicon macOS, open **Lemmata Setup.command** (Finder may require approval and executable permission). Both open the guided terminal setup; no `cd` command is needed. The full-screen amber menu supports arrow keys, Enter and terminal resizing without accumulating duplicated options.
+1. Download and extract this repository as a ZIP file.
+2. Double-click **Lemmata Setup.cmd**.
+3. In the setup window, choose the TeX option that suits your work. The descriptions explain each choice and the required storage.
+4. Choose a default engine after the check completes. Lemmata opens at `http://127.0.0.1:2303/`.
 
+### Apple Silicon Mac
 
+1. Download and extract this repository as a ZIP file.
+2. Open **Lemmata Setup.command**. If macOS blocks it, Control-click the file and choose **Open**.
+3. Follow the same on-screen setup steps, then choose your default engine.
 
-**Fresh download:** `Install Lemmata.cmd` is a standalone Windows bootstrap; `Install Lemmata.command` is its Mac counterpart. They download this repository at a fixed commit into a new dedicated folder, then run guided setup. The folder must not already exist. Default locations are `%LOCALAPPDATA%/Lemmata/source` and `~/Applications/Lemmata`. These entry points require the updated bootstrap and wizard to be published to `main`; local changes alone do not update the public download.
+### One-line Windows install
 
-
-
-After publishing, the Windows terminal alternative is:
-
-
+If you prefer PowerShell, copy this line, paste it into PowerShell, then press Enter:
 
 ```powershell
-
 irm https://raw.githubusercontent.com/helloSayanDeb/latex-editor/main/bootstrap.ps1 | iex
-
 ```
 
+It downloads Lemmata, opens the guided setup, checks that it can create a PDF, and opens your browser when it is ready. Keep the setup window open while using Lemmata; closing it stops the local app.
 
+### Choosing a TeX engine
 
-This executes the repository’s installer: review it before running it. Downloads, OS approval and setup prompts still require a network connection and user interaction.
+The installer checks pdfLaTeX, XeLaTeX and LuaLaTeX. If your computer needs one, choose a TeX distribution from the menu. For most papers, **pdfLaTeX** is a good first choice. Choose **XeLaTeX** for system fonts or multilingual documents, and **LuaLaTeX** for documents made for LuaLaTeX. You can change this later in **Tools → Lemmata setup & engine checks**.
 
+If a document needs an additional LaTeX package, Lemmata explains what is missing and asks before it installs anything.
 
+### Remove Lemmata
 
-For an explicit script launch from a downloaded checkout:
+Stop Lemmata, then double-click **Lemmata Uninstall.cmd** on Windows or **Lemmata Uninstall.command** on macOS. The menu lets you choose whether to remove only the app files, installed TeX tools, settings, or saved papers. It only removes components that Lemmata itself installed.
 
+<details>
+<summary>Advanced setup details</summary>
 
+Lemmata can reuse an existing TeX installation. Windows supports TinyTeX, MiKTeX and TeX Live; Apple Silicon supports TinyTeX, BasicTeX and MacTeX. The setup tool also offers an existing compiler folder, retry, and editing-only modes. Your projects are kept in `projects/` and settings in `lemmata-settings.json` unless you choose to remove them.
 
-```powershell
-
-# Windows x64 / Windows 11 ARM64
-
-powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1
-
-```
-
-
-
-```sh
-
-# Apple Silicon macOS; Linux can use the TinyTeX path
-
-bash setup.sh
-
-```
-
-
-
-The launcher reuses Node.js 22+ if available. Otherwise it offers a private, checksum-verified official Node.js runtime for Windows x64/ARM64 or Apple Silicon macOS. It does not install Git or replace a shared system Node runtime. The shared terminal wizard then:
-
-
-
-1. Installs application dependencies and builds Lemmata.
-
-2. Tests actual PDF generation separately with pdfLaTeX, XeLaTeX and LuaLaTeX.
-
-3. If any checks fail, offers an arrow-key menu with distribution explanations and approximate download/disk requirements, an existing compiler directory, retry, or editing-only mode.
-
-4. Downloads/installs the selected distribution after confirmation, then re-tests all engines. OS administrator approval may still be required. Failed checks never count as verified; users may explicitly continue with only the engines that passed.
-
-5. Lets you choose a verified default engine for new projects, saves `lemmata-settings.json`, starts the local server and opens your default browser after it responds. Keep the terminal open; Ctrl+C stops the server.
-
-
-
-TinyTeX uses a checksum-verified official release archive extracted into an installation-owned directory, without replacing another TinyTeX directory or adding a permanent global PATH entry. Windows x64 offers TinyTeX, MiKTeX (requires winget), or full TeX Live. Windows ARM64 offers TeX Live through Windows 11 x64 emulation; it is not native ARM support. Apple Silicon offers TinyTeX, BasicTeX or full MacTeX. Choose one distribution, not all of them. Sizes are estimates and additional document packages/fonts need extra storage and downloads. Existing working compilers are reused. A missing winget or blocked vendor installer is reported, with retry/custom-directory/editing-only options.
-
-
-
-After Windows setup, **Lemmata Setup.lnk** uses an icon generated from the same SVG as the favicon. Plain PowerShell/shell files retain the OS file-type icon; no global file associations are changed. On macOS, setup enables **Lemmata Setup.command** as a double-click terminal launcher; Finder may still require first-run approval, and it uses the standard terminal icon. Its custom icon is not automatically assigned.
-
-
-
-Advanced checks: `npm run setup -- --check` performs real compiler tests only. `--skip-build --no-launch --no-shortcut` rechecks an already prepared checkout interactively. A noninteractive invocation without `--check` fails instead of choosing/installing software silently.
-
-
-
-Your projects remain under `projects/` (or `LEMMATA_DATA_DIR`), and settings remain in `lemmata-settings.json`. Keep these when updating. Native application EXE/DMG packaging is not included.
-
-
-
-### Uninstall or reset
-
-
-
-Stop Lemmata, then double-click **Lemmata Uninstall.cmd** (Windows) or **Lemmata Uninstall.command** (macOS). Choose what to remove:
-
-
-
-- Application dependencies and generated builds, keeping source and papers.
-
-- Individual setup-owned compiler installations.
-
-- Settings, or projects including snapshots/reviews, with typed confirmation.
-
-- The private Node runtime installed by this checkout, if any.
-
-
-
-The local `.lemmata-install.json` receipt records component ownership and stays out of Git. Keep it for cleanup. Existing system Node, Git and untracked compilers are preserved, including installations made before receipt tracking was introduced. Managed directories require matching ownership markers before removal. Windows private Node removal finishes after the uninstaller exits; failures leave a recovery log in the temporary helper directory.
-
-
-
-BasicTeX/MacTeX cleanup removes only recorded new compiler directories; shared system links, macOS package receipts and companion applications remain for vendor-managed cleanup. Browser preferences are separate: clear Lemmata site data in your browser to remove them. Source files and the repository remain for reuse or manual deletion after cleanup. `node scripts/uninstall-wizard.cjs --list` shows the recorded components without removing anything.
+</details>
 
 
 
@@ -490,7 +426,7 @@ Run `node scripts/journal-git-regressions.cjs` for bounded ZIP/dependency/report
 
 
 
-These changes are **unreleased source**. Native packaging has been removed; the supported distribution is the local web app. PDF.js, nested math renderers and development dependencies were updated. The complete npm audit reported zero known advisories on 28 October 2026; that is not a guarantee of zero bugs or complete security.
+Lemmata is distributed as a local web app with guided setup. PDF.js, nested math renderers and development dependencies are included through the normal installation flow. The complete npm audit reported zero known advisories on 28 October 2026; that is not a guarantee of zero bugs or complete security.
 
 
 
