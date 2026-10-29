@@ -13,7 +13,7 @@ const os = require('os');
 
 console.log('');
 console.log('  ╔═════════════════════════════════════════════════════════════════╗');
-console.log('  ║        TeXStudio Local — Environment & Smoke Test Suite        ║');
+console.log('  ║        Lemmata — Environment & Smoke Test Suite        ║');
 console.log('  ╚═════════════════════════════════════════════════════════════════╝');
 console.log('');
 
@@ -35,7 +35,7 @@ const commonTexPaths = [
 
 for (const p of commonTexPaths) {
   if (fs.existsSync(p) && !process.env.PATH.includes(p)) {
-    process.env.PATH = `${p};${process.env.PATH}`;
+    process.env.PATH = `${p}${path.delimiter}${process.env.PATH}`;
   }
 }
 
@@ -67,7 +67,7 @@ try {
 // Check other optional engines & tools
 for (const eng of ['xelatex', 'lualatex', 'bibtex', 'synctex']) {
   try {
-    const v = execSync(`${eng} --version`, { env: process.env }).toString().split('\n')[0];
+    const v = execSync(`${eng} ${eng === 'synctex' ? 'help' : '--version'}`, { env: process.env, stdio: ['ignore','pipe','ignore'] }).toString().split('\n')[0];
     console.log(`  ✓ Engine / Tool '${eng}': available (${v})`);
   } catch {
     console.log(`  - Engine / Tool '${eng}': not installed (optional)`);
@@ -75,12 +75,12 @@ for (const eng of ['xelatex', 'lualatex', 'bibtex', 'synctex']) {
 }
 
 // 3. Perform Live Headless Compilation Test
-console.log(`[3/5] Performing Live Compilation Test (CircuiTikZ & Math)...`);
+console.log(`[3/5] Performing Base-LaTeX Compilation Test...`);
 if (pdflatexFound) {
   const tmpDir = path.join(os.tmpdir(), `smoke-test-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
 
-  const testTex = `\\documentclass{article}
+  const advancedTex = `\\documentclass{article}
 \\usepackage{amsmath, amssymb}
 \\usepackage{circuitikz}
 \\begin{document}
@@ -98,6 +98,14 @@ Testing live typesetting of mathematical expression:
 \\end{center}
 \\end{document}`;
 
+  const testTex = process.argv.includes('--advanced') ? advancedTex : String.raw`\documentclass{article}
+\begin{document}
+Lemmata compilation check.
+\[ E = mc^2 \]
+\begin{tabular}{lr}
+Check & Ready \\
+\end{tabular}
+\end{document}`;
   const texFile = path.join(tmpDir, 'test.tex');
   fs.writeFileSync(texFile, testTex, 'utf-8');
 
@@ -129,8 +137,8 @@ Testing live typesetting of mathematical expression:
 console.log(`[4/5] Verifying Client Assets & Next.js Workstation...`);
 const requiredAssets = [
   'public/favicon.svg',
-  'public/vendor/pdf.min.js',
-  'public/vendor/pdf.worker.min.js',
+  'public/vendor/pdf.min.mjs',
+  'public/vendor/pdf.worker.min.mjs',
   'src/app/page.tsx',
   'src/app/layout.tsx'
 ];
@@ -149,7 +157,7 @@ if (assetsOk) {
 }
 
 // 5. Check GPU Rendering Pipeline Capability
-console.log(`[5/5] Checking GPU Rendering Pipeline Capability...`);
+console.log(`[5/5] Checking optional display information...`);
 // System GPU detection via powershell on Windows, or lspci on Linux
 let gpuDetected = false;
 try {
@@ -165,7 +173,7 @@ try {
     }
     gpuDetected = true;
   } else {
-    console.log(`  - Browser WebGL capability must be checked in the PDF viewer`);
+    console.log(`  - PDF preview uses Canvas 2D; decorative landing WebGL is optional`);
     gpuDetected = true;
   }
 } catch {

@@ -1,5 +1,5 @@
 import { MAX_REQUEST_BYTES } from './local-access';
-export async function readRequestText(request: Request, limit = MAX_REQUEST_BYTES): Promise<string> {
+export async function readRequestText(request: Pick<Request, 'body'>, limit = MAX_REQUEST_BYTES): Promise<string> {
   if (!request.body) return '';
   const reader = request.body.getReader();
   const decoder = new TextDecoder();

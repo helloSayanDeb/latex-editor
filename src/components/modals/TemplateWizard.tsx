@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '../Dropdown';
 import { generateTemplate } from '@/lib/templates';
 import React, { useState } from 'react';
 import { Sparkles, FileText, Cpu, BookOpen, Layers, Check, X, ArrowRight, ArrowLeft } from 'lucide-react';
@@ -111,9 +112,9 @@ export const TemplateWizard: React.FC<TemplateWizardProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
       <div
-        className="glass-card flex flex-col w-full max-w-2xl overflow-hidden shadow-2xl"
+        className="template-wizard glass-card flex flex-col w-full max-w-2xl overflow-hidden shadow-2xl"
         style={{
-          background: 'rgba(15, 18, 28, 0.96)',
+          background: 'var(--bg-secondary)',
           border: '1px solid rgba(255, 255, 255, 0.12)',
           maxHeight: '90vh',
         }}
@@ -184,31 +185,8 @@ export const TemplateWizard: React.FC<TemplateWizardProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <label className="flex flex-col gap-1">
-                  <span className="text-slate-300 font-semibold">Base Font Size</span>
-                  <select
-                    value={fontSize}
-                    onChange={e => setFontSize(e.target.value)}
-                    className="input-dark"
-                  >
-                    <option value="10pt">10pt (Standard publication)</option>
-                    <option value="11pt">11pt (Modern readable)</option>
-                    <option value="12pt">12pt (Comfort / Thesis)</option>
-                  </select>
-                </label>
-
-                <label className="flex flex-col gap-1">
-                  <span className="text-slate-300 font-semibold">Margins</span>
-                  <select
-                    value={margin}
-                    onChange={e => setMargin(e.target.value)}
-                    className="input-dark"
-                  >
-                    <option value="0.75in">Narrow (0.75 in)</option>
-                    <option value="0.85in">Standard (0.85 in)</option>
-                    <option value="1.0in">Wide / Thesis (1.0 in)</option>
-                  </select>
-                </label>
+                <Dropdown label="Base font size" value={fontSize} onChange={setFontSize} options={[{value:'10pt',label:'10pt · Standard publication'},{value:'11pt',label:'11pt · Modern readable'},{value:'12pt',label:'12pt · Comfort / Thesis'}]}/>
+                <Dropdown label="Margins" value={margin} onChange={setMargin} options={[{value:'0.75in',label:'Narrow · 0.75 in'},{value:'0.85in',label:'Standard · 0.85 in'},{value:'1.0in',label:'Wide / Thesis · 1.0 in'}]}/>
               </div>
 
               <label className="flex flex-col gap-1">
@@ -273,7 +251,7 @@ export const TemplateWizard: React.FC<TemplateWizardProps> = ({
         <div className="flex items-center justify-between px-6 py-3 border-t border-white/10">
           {step > 1 ? (
             <button
-              onClick={() => setStep((s => (s - 1) as any))}
+              onClick={() => setStep((s => (s - 1) as 1 | 2 | 3))}
               className="btn-secondary text-xs"
             >
               <ArrowLeft size={14} />
@@ -285,7 +263,7 @@ export const TemplateWizard: React.FC<TemplateWizardProps> = ({
 
           {step < 3 ? (
             <button
-              onClick={() => setStep((s => (s + 1) as any))}
+              onClick={() => setStep((s => (s + 1) as 1 | 2 | 3))}
               className="btn-primary text-xs"
             >
               <span>Next</span>

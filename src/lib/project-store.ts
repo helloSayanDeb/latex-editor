@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { buildRecipe, type BuildRecipe } from './build-settings';
 import path from 'path';
 import { sanitizePath, sanitizeProjectId, validateFilename } from './security';
 import { logAuditEvent } from './audit-logger';
@@ -10,6 +11,8 @@ export interface ProjectMetadata {
   updatedAt: string;
   engine: 'pdflatex' | 'xelatex' | 'lualatex';
   mainFile: string;
+  buildRecipe?: BuildRecipe;
+  autoCompile?: boolean;
 }
 
 export interface ProjectData {
@@ -28,6 +31,14 @@ export interface SnapshotItem {
 }
 
 import { PROJECTS_DIR } from './data-path';
+function defaultEngine(): ProjectMetadata['engine'] {
+  try {
+    const value = JSON.parse(fs.readFileSync(path.join(PROJECTS_DIR, '..', 'lemmata-settings.json'), 'utf8')).defaultEngine;
+    if (['pdflatex', 'xelatex', 'lualatex'].includes(value)) return value;
+  } catch { /* No default configured. */ }
+  return 'pdflatex';
+}
+export { defaultEngine };
 
 export function ensureProjectsDir(): void {
   if (!fs.existsSync(PROJECTS_DIR)) {
@@ -48,7 +59,7 @@ export function ensureDefaultProject(): void {
       name: 'Default Workspace',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      engine: 'pdflatex',
+      engine: defaultEngine(),
       mainFile: 'main.tex',
     };
     fs.writeFileSync(path.join(defaultDir, 'project.json'), JSON.stringify(meta, null, 2), 'utf-8');
@@ -125,6 +136,7 @@ export function getProject(projectId: string): ProjectData | null {
       } else if (item.isFile()) {
         if (item.name === 'project.json' && !baseRel) continue;
         const ext = path.extname(item.name).toLowerCase();
+        if (!validateFilename(relPath)) continue;
         const isBinary = ['.png', '.jpg', '.jpeg', '.pdf', '.gif', '.ico'].includes(ext);
         if (isBinary) {
           const buf = fs.readFileSync(fullPath);
@@ -148,7 +160,7 @@ export function getProject(projectId: string): ProjectData | null {
 
 export function saveProject(
   projectId: string,
-  data: { name?: string; engine?: 'pdflatex' | 'xelatex' | 'lualatex'; mainFile?: string; files: Record<string, string> }
+  data: { name?: string; engine?: 'pdflatex' | 'xelatex' | 'lualatex'; mainFile?: string; buildRecipe?: BuildRecipe; autoCompile?: boolean; files: Record<string, string> }
 ): ProjectMetadata {
   ensureProjectsDir();
   const cleanId = sanitizeProjectId(projectId);
@@ -156,7 +168,10 @@ export function saveProject(
   for (const [name, content] of Object.entries(data.files)) {
     if (!validateFilename(name) || typeof content !== 'string') throw new Error('Invalid project file: ' + name);
   }
-  if (data.mainFile && !validateFilename(data.mainFile)) throw new Error('Invalid main file.');
+  if (data.mainFile && (!validateFilename(data.mainFile) || !data.mainFile.endsWith('.tex'))) throw new Error('Invalid main .tex file.');
+  if (data.engine !== undefined && !['pdflatex','xelatex','lualatex'].includes(data.engine)) throw new Error('Unsupported compiler.');
+  const recipe = data.buildRecipe === undefined ? undefined : buildRecipe(data.buildRecipe);
+  if (data.autoCompile !== undefined && typeof data.autoCompile !== 'boolean') throw new Error('Invalid automatic compilation setting.');
   const projDir = path.join(PROJECTS_DIR, cleanId);
   const previousFiles = fs.existsSync(path.join(projDir, 'project.json')) ? getProject(cleanId)?.files || {} : {};
   fs.mkdirSync(projDir, { recursive: true });
@@ -187,7 +202,12 @@ export function saveProject(
     };
   }
 
-  if (data.name) metadata.name = data.name;
+  if (data.name !== undefined) {
+    if (typeof data.name !== 'string' || !data.name.trim() || data.name.trim().length > 100) throw new Error('Use a project name between 1 and 100 characters.');
+    metadata.name = data.name.trim();
+  }
+  if (recipe !== undefined) metadata.buildRecipe = recipe;
+  if (data.autoCompile !== undefined) metadata.autoCompile = data.autoCompile;
   if (data.engine) metadata.engine = data.engine;
   if (data.mainFile) metadata.mainFile = data.mainFile;
   metadata.updatedAt = new Date().toISOString();
@@ -199,6 +219,9 @@ export function saveProject(
     try {
       const safeRel = sanitizePath(relPath);
       const targetPath = path.join(projDir, safeRel);
+      for (let location = targetPath; location !== projDir; location = path.dirname(location)) {
+        if (fs.existsSync(location) && fs.lstatSync(location).isSymbolicLink()) throw new Error('Project symlinks cannot be edited.');
+      }
       fs.mkdirSync(path.dirname(targetPath), { recursive: true });
 
       if (typeof content === 'string' && content.startsWith('data:') && content.includes(';base64,')) {
@@ -236,7 +259,7 @@ export function deleteProject(projectId: string): boolean {
   if (cleanId === 'default') return false; // don't delete default
   const projDir = path.join(PROJECTS_DIR, cleanId);
   if (fs.existsSync(projDir)) {
-    fs.rmSync(projDir, { recursive: true, force: true });
+    fs.rmSync(projDir, { recursive: true, force: true, maxRetries: 6, retryDelay: 100 });
     logAuditEvent({
       action: 'delete_project',
       project: cleanId,

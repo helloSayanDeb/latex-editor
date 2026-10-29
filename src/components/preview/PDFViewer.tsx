@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ZoomIn,
   ZoomOut,
@@ -14,11 +14,14 @@ import {
   Cpu,
   RefreshCw,
 } from 'lucide-react';
+import { loadPDFJS } from '@/lib/pdfjs-loader';
+import type { PDFDocumentProxy, PDFDocumentLoadingTask } from 'pdfjs-dist';
 import { PDFPageRenderer } from '@/lib/pdf-page-renderer';
 import { capturePDFPosition } from '@/lib/pdf-position';
 import { Mascot } from '../Mascot';
 
 interface PDFViewerProps {
+  problemControls?: React.ReactNode;
   pdfBlob: Blob | null;
   isCompiling: boolean;
   onSyncTexJump?: (page: number, x: number, y: number) => void;
@@ -26,6 +29,7 @@ interface PDFViewerProps {
 }
 
 export const PDFViewer: React.FC<PDFViewerProps> = ({
+  problemControls,
   pdfBlob,
   isCompiling,
   onSyncTexJump,
@@ -37,34 +41,14 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.25);
   const [darkPaper, setDarkPaper] = useState<boolean>(false);
-  const [pdfDoc, setPdfDoc] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [fitMode, setFitMode] = useState<'width' | 'page' | null>('width');
   const [renderError, setRenderError] = useState('');
   const syncCallback = useRef(onSyncTexJump);
   useEffect(() => { syncCallback.current = onSyncTexJump; }, [onSyncTexJump]);
   const rendererRef = useRef<PDFPageRenderer | null>(null);
   const scaleRef = useRef(scale);
-  scaleRef.current = scale;
-
-  // Ensure PDF.js is loaded
-  const ensurePdfJs = useCallback(async (): Promise<any> => {
-    if (typeof window === 'undefined') return null;
-    if ((window as any).pdfjsLib) return (window as any).pdfjsLib;
-
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = '/vendor/pdf.min.js';
-      script.onload = () => {
-        const lib = (window as any).pdfjsLib;
-        if (lib) {
-          lib.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.js';
-        }
-        resolve(lib);
-      };
-      script.onerror = () => reject(new Error('Could not load the PDF viewer. Reload to try again.'));
-      document.body.appendChild(script);
-    });
-  }, []);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
 
   // Load PDF Document when blob changes
   useEffect(() => {
@@ -78,16 +62,16 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
     }
 
     let active = true;
-    let loadingTask: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    let loadingTask: PDFDocumentLoadingTask | undefined;
 
     async function loadDocument() {
       try {
         setRenderError('');
-        const pdfjs = await ensurePdfJs();
+        const pdfjs = await loadPDFJS();
         if (!pdfjs || !active) return;
         const arrayBuffer = await pdfBlob!.arrayBuffer();
         if (!active) return;
-        loadingTask = pdfjs.getDocument({ data: arrayBuffer, isEvalSupported: false });
+        loadingTask = pdfjs.getDocument({ data: arrayBuffer, isEvalSupported: false, cMapUrl: '/vendor/pdfjs/cmaps/', cMapPacked: true, standardFontDataUrl: '/vendor/pdfjs/standard_fonts/' });
         const doc = await loadingTask.promise;
 
         if (active) {
@@ -106,7 +90,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
       active = false;
       loadingTask?.destroy();
     };
-  }, [pdfBlob, ensurePdfJs]);
+  }, [pdfBlob]);
 
   useEffect(() => {
     if (!pdfDoc || !pagesContainerRef.current || !containerRef.current) return;
@@ -176,8 +160,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
           <div
             className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium"
             style={{
-              background: 'rgba(99, 102, 241, 0.15)',
-              color: '#818cf8',
+                background: 'var(--accent-dim)',
+                color: 'var(--accent-text)',
               border: '1px solid rgba(99, 102, 241, 0.25)',
             }}
             title="PDF.js worker · Canvas 2D · visible pages first"
@@ -187,15 +171,16 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
 
           </div>
 
+          {problemControls}
           {numPages > 0 && (
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="pdf-page-count text-xs text-slate-400 font-mono">
               {numPages} {numPages === 1 ? 'Page' : 'Pages'}
             </span>
           )}
         </div>
 
         {/* Center: Zoom & View controls */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 ml-auto">
           <button onClick={handleZoomOut} className="btn-icon" title="Zoom Out">
             <ZoomOut size={15} />
           </button>
@@ -238,7 +223,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
           if (!container) return;
           const pages = pagesContainerRef.current?.querySelectorAll<HTMLElement>('[data-page-num]');
           const top = container.getBoundingClientRect().top;
-          const visible = Array.from(pages || []).find(page => page.getBoundingClientRect().bottom > top + 48);
+          const visible = Array.from(pages || []).find(page => page.getBoundingClientRect().bottom > top + container.clientHeight * .4);
           if (visible) setCurrentPage(Number(visible.dataset.pageNum));
         }}
         className="pdf-pages flex-1 overflow-y-auto overflow-x-auto p-6 flex flex-col relative"

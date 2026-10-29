@@ -13,7 +13,7 @@ export function sanitizeProjectId(projectId: string): string {
   if (typeof projectId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(projectId)) throw new Error('Invalid project identifier.');
   return projectId;
 }
-export const ALLOWED_EXTENSIONS = new Set(['.tex','.bib','.sty','.cls','.bst','.txt','.csv','.dat','.png','.jpg','.jpeg','.pdf','.svg','.eps']);
+export const ALLOWED_EXTENSIONS = new Set(['.tex','.bib','.sty','.cls','.bst','.bbx','.cbx','.lbx','.def','.cfg','.fd','.md','.txt','.csv','.dat','.png','.jpg','.jpeg','.pdf','.svg','.eps']);
 export function validateFilename(name: string): boolean {
   try {
     const safe = sanitizePath(name);

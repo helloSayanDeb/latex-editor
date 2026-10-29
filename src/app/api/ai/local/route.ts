@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     let baseUrl: string;
     try { baseUrl = localAIBase(provider, body.config.baseUrl); }
     catch (error) { return NextResponse.json({ error: (error as Error).message }, { status: 400 }); }
-    if (typeof body.prompt !== 'string' || body.prompt.length > 20000 || ['selectedText', 'fullDocument'].some(field => body.context?.[field] !== undefined && (typeof body.context[field] !== 'string' || body.context[field].length > 100000))) {
+    if (typeof body.prompt !== 'string' || body.prompt.length > 20000 || ['selectedText', 'fullDocument', 'compilerErrors'].some(field => body.context?.[field] !== undefined && (typeof body.context[field] !== 'string' || body.context[field].length > 100000))) {
       return NextResponse.json({ error: 'Invalid or oversized AI request.' }, { status: 400 });
     }
     if (body.history !== undefined && (!Array.isArray(body.history) || body.history.length > 40 || body.history.some((turn: {role?: unknown; content?: unknown}) => !turn || !['user', 'assistant'].includes(String(turn.role)) || typeof turn.content !== 'string') || JSON.stringify(body.history).length > 200000)) return NextResponse.json({ error: 'Invalid conversation history.' }, { status: 400 });

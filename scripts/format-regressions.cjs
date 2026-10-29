@@ -51,7 +51,7 @@ assert.equal(formatLatex('\\begin{document}\r\ntext\r\n\\end{document}\r\n'),'\\
 assert.doesNotThrow(()=>formatLatex('\\end{unmatched}\n}\n\\begin{unfinished}\ntext'));
 console.log('PASS inline environments, newline preservation and incomplete source');
 if(process.argv.includes('--live')) (async()=>{
- const pdfjs=require('pdfjs-dist/legacy/build/pdf.js');
+ const pdfjs=await import('pdfjs-dist/legacy/build/pdf.mjs');
  const source=String.raw`\documentclass{article}
 \usepackage{amsmath}
 \begin{document}
@@ -69,7 +69,7 @@ x^2+y^2=1
 Second page.
 \end{document}`;
  async function inspect(text){
-  const response=await fetch('http://127.0.0.1:2303/api/compile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:'format-regression-no-project',mainFile:'main.tex',engine:'pdflatex',files:{'main.tex':text}})});
+  const response=await fetch((process.env.LEMMATA_TEST_URL || 'http://127.0.0.1:2303')+'/api/compile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:'format-regression-no-project',mainFile:'main.tex',engine:'pdflatex',files:{'main.tex':text}})});
   assert(response.ok,await (response.ok?Promise.resolve(''):response.text()));
   const doc=await pdfjs.getDocument({data:new Uint8Array(await response.arrayBuffer()),disableFontFace:true,useSystemFonts:true}).promise;
   try {const result=[];for(let n=1;n<=doc.numPages;n++){const page=await doc.getPage(n);const content=await page.getTextContent();result.push(content.items.map(item=>({text:item.str,transform:item.transform})));}return result;}finally{await doc.destroy();}

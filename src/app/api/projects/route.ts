@@ -1,6 +1,6 @@
 import { readRequestJSON } from '@/lib/request-limits';
 import { NextRequest, NextResponse } from 'next/server';
-import { listProjects, saveProject, ensureDefaultProject, WELCOME_LATEX_CONTENT, WELCOME_BIB_CONTENT } from '@/lib/project-store';
+import { listProjects, saveProject, ensureDefaultProject, WELCOME_LATEX_CONTENT, WELCOME_BIB_CONTENT, defaultEngine } from '@/lib/project-store';
 import { sanitizeProjectId } from '@/lib/security';
 import { logAuditEvent } from '@/lib/audit-logger';
 
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     const name = typeof body.name === 'string' ? body.name.trim().slice(0,100) || 'Untitled Project' : 'Untitled Project';
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0,60) || 'project';
     const id = sanitizeProjectId(slug) + '-' + crypto.randomUUID();
-    const engine = ['pdflatex', 'xelatex', 'lualatex'].includes(body.engine) ? body.engine : 'pdflatex';
+    const engine = ['pdflatex', 'xelatex', 'lualatex'].includes(body.engine) ? body.engine : defaultEngine();
 
     const files: Record<string, string> = body.files || {
       'main.tex': body.initialTex || WELCOME_LATEX_CONTENT,

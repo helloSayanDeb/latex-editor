@@ -1,9 +1,10 @@
 require('./local-test-session.cjs');
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
-const pdfjs=require('pdfjs-dist/legacy/build/pdf.js');
-const base='http://127.0.0.1:2303';
+let pdfjs;
+const base=process.env.LEMMATA_TEST_URL || 'http://127.0.0.1:2303';
 (async()=>{
+  pdfjs=await import('pdfjs-dist/legacy/build/pdf.mjs');
   const system=await (await fetch(base+'/api/system')).json();
   const results=[];
   for(const engine of ['pdflatex','xelatex','lualatex']) {
@@ -12,7 +13,7 @@ const base='http://127.0.0.1:2303';
     const tex=String.raw`\documentclass{article}
 \usepackage{iftex}
 ${'\\'+condition} \else \errmessage{Wrong engine was invoked} \fi
-${engine==='pdflatex'?'':String.raw`\usepackage{fontspec}\setmainfont{Latin Modern Roman}`}
+${engine==='pdflatex'?'':String.raw`\usepackage{fontspec}\setmainfont{lmroman10-regular.otf}`}
 \begin{document}
 ENGINE IDENTITY: ${expected}
 ${engine==='pdflatex'?'':String.raw`Native fontspec text: café, naïve.`}
@@ -29,9 +30,9 @@ ${engine==='pdflatex'?'':String.raw`Native fontspec text: café, naïve.`}
     assert.ok(text.includes(expected));
     const metadata=await pdf.getMetadata();
     results.push({engine,status:'PASS',installedVersion:system.engineVersions[engine],compiler,producer:metadata.info.Producer,text});
-    fs.writeFileSync('docs/engine-proof-'+engine+'.pdf',bytes);
+    fs.writeFileSync('tmp/engine-proof-'+engine+'.pdf',bytes);
     await pdf.destroy();
     console.log(engine,compiler,metadata.info.Producer);
   }
-  fs.writeFileSync('docs/engine-identity-results.json',JSON.stringify(results,null,2));
+  fs.writeFileSync('tmp/engine-identity-results.json',JSON.stringify(results,null,2));
 })().catch(err=>{console.error(err);process.exitCode=1;});

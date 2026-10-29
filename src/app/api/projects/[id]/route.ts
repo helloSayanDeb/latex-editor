@@ -33,6 +33,8 @@ export async function PUT(
       name: body.name,
       engine: body.engine,
       mainFile: body.mainFile,
+      buildRecipe: body.buildRecipe,
+      autoCompile: body.autoCompile,
       files: body.files || {},
     });
     return NextResponse.json({ ok: true, metadata });

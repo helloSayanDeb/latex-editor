@@ -1,10 +1,10 @@
 /* =============================================================================
-   TeXStudio Local — Modern Premium Dark Design System (Vanilla CSS)
+   Lemmata — Modern Premium Dark Design System (Vanilla CSS)
    ============================================================================= */
 
 
 :root {
-  /* Color Palette — Obsidian Dark & Emerald / Indigo Accents */
+  /* Color Palette — Charcoal, amber and steel accents */
   --bg-workspace: #08090d;
   --bg-primary: #0d0f15;
   --bg-secondary: #131620;
@@ -16,7 +16,7 @@
   /* Borders & Dividers */
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border-medium: rgba(255, 255, 255, 0.12);
-  --border-accent: rgba(16, 185, 129, 0.35);
+  --border-accent: rgba(255, 180, 94, 0.35);
 
   /* Typography */
   --text-main: #f1f5f9;
@@ -26,9 +26,9 @@
   --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, monospace;
 
   /* Accents */
-  --emerald: #10b981;
-  --emerald-hover: #059669;
-  --emerald-dim: rgba(16, 185, 129, 0.15);
+  --emerald: #b96d10;
+  --emerald-hover: #965505;
+  --emerald-dim: rgba(255, 180, 94, 0.15);
   --indigo: #6366f1;
   --indigo-hover: #4f46e5;
   --indigo-dim: rgba(99, 102, 241, 0.15);
@@ -47,7 +47,7 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
-  --shadow-emerald: 0 0 20px rgba(16, 185, 129, 0.25);
+  --shadow-emerald: 0 0 20px rgba(255, 180, 94, 0.25);
 }
 
 /* Global Reset */
@@ -150,12 +150,12 @@ html, body {
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
-  50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.5); }
+  0%, 100% { box-shadow: 0 0 15px rgba(255, 180, 94, 0.2); }
+  50% { box-shadow: 0 0 30px rgba(255, 180, 94, 0.5); }
 }
 
 @keyframes flashHighlight {
-  0% { background-color: rgba(16, 185, 129, 0.45); }
+  0% { background-color: rgba(255, 180, 94, 0.45); }
   100% { background-color: transparent; }
 }
 
@@ -169,7 +169,7 @@ html, body {
 
 /* Button & Control Classes */
 .btn-primary {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #b96d10 0%, #965505 100%);
   color: white;
   border: none;
   font-weight: 600;
@@ -179,12 +179,12 @@ html, body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 3px 12px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 3px 12px rgba(255, 180, 94, 0.35);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.5);
+  box-shadow: 0 6px 18px rgba(255, 180, 94, 0.5);
   filter: brightness(1.08);
 }
 .btn-primary:active:not(:disabled) {
@@ -241,8 +241,8 @@ html, body {
 /* Badge Classes */
 .badge-emerald {
   background: var(--emerald-dim);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #d38c34;
+  border: 1px solid rgba(255, 180, 94, 0.3);
   font-size: 11px;
   font-weight: 600;
   padding: 2px 7px;
@@ -290,7 +290,7 @@ html, body {
 }
 .input-dark:focus {
   border-color: var(--emerald);
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 0 2px rgba(255, 180, 94, 0.2);
 }
 
 /* CodeMirror container theme styling */
@@ -310,8 +310,8 @@ html, body {
   border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 .cm-activeLineGutter {
-  background-color: rgba(16, 185, 129, 0.12) !important;
-  color: #34d399 !important;
+  background-color: rgba(255, 180, 94, 0.12) !important;
+  color: #d38c34 !important;
   font-weight: bold !important;
 }
 .cm-activeLine {
@@ -329,15 +329,15 @@ html, body {
   color: #fca5a5 !important;
 }
 .cm-diff-added {
-  background-color: rgba(16, 185, 129, 0.25) !important;
-  color: #86efac !important;
+  background-color: rgba(255, 180, 94, 0.25) !important;
+  color: #efc086 !important;
 }
 .cm-spell-error {
   text-decoration: underline wavy #f43f5e;
   text-decoration-thickness: 1.5px;
 }
 
-/* DevPilot / IDE Window Card Styling */
+/* Workspace window card styling */
 .code-window-card {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;

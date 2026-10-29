@@ -1,5 +1,6 @@
 'use client';
 
+import { Checkbox } from '../Checkbox';
 import { escapeLatexText } from '@/lib/latex-text';
 import React, { useState } from 'react';
 import { Table, Check, X, Plus, Trash2 } from 'lucide-react';
@@ -94,8 +95,8 @@ export const TableGenerator: React.FC<TableGeneratorProps> = ({
       <div
         className="glass-card flex flex-col w-full max-w-2xl overflow-hidden shadow-2xl"
         style={{
-          background: 'rgba(15, 18, 28, 0.98)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-medium)',
           maxHeight: '90vh',
         }}
       >
@@ -117,15 +118,9 @@ export const TableGenerator: React.FC<TableGeneratorProps> = ({
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 text-xs">
           {/* Controls */}
           <div className="flex items-center gap-4 flex-wrap">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={useBooktabs}
-                onChange={e => setUseBooktabs(e.target.checked)}
-                className="rounded bg-slate-800 border-slate-700 text-emerald-500"
-              />
+            <Checkbox checked={useBooktabs} onChange={setUseBooktabs}>
               <span className="text-slate-300 font-semibold">Use Booktabs (\\toprule, \\midrule)</span>
-            </label>
+            </Checkbox>
 
             <button onClick={addRow} className="btn-secondary text-xs">
               <Plus size={13} />
@@ -148,7 +143,7 @@ export const TableGenerator: React.FC<TableGeneratorProps> = ({
                         value={align}
                         onChange={e => {
                           const copy = [...alignments];
-                          copy[cIdx] = e.target.value as any;
+                          copy[cIdx] = e.target.value as 'l' | 'c' | 'r';
                           setAlignments(copy);
                         }}
                         className="input-dark py-0.5 px-1 text-[11px] w-full text-center"

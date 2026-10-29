@@ -1,13 +1,16 @@
 'use client';
+import { readPreference } from '@/lib/preferences';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Dropdown } from '@/components/Dropdown';
 import { Checkbox } from '@/components/Checkbox';
 import { resolveAIConfig } from '@/lib/ai-config';
-import { latexBlocks, validEditTarget, type AIEditTarget } from '@/lib/ai-conversation';
+import { parseFocusedEdit, minimalAIEdit, validEditTarget, type AIEditTarget } from '@/lib/ai-conversation';
 import { PromptCarousel } from './PromptCarousel';
 import { ChatMarkdown } from './ChatMarkdown';
+import { PaperReviewPanel } from './PaperReviewPanel';
 import { cloudVisionSupport, prepareReferenceImage, type AIImage, type AIModel } from '@/lib/ai-images';
+import { Mascot } from '../Mascot';
 import { sharedSource, conversationScope, type SourceSharing } from '@/lib/ai-privacy';
 import {
   Sparkles,
@@ -18,15 +21,15 @@ import {
   Bot,
   Copy,
   Check,
-  Code2,
   FileText,
   AlertCircle,
   HelpCircle,
-  ArrowRight,
   ImagePlus,
   Trash2,
   ChevronDown,
   SlidersHorizontal,
+  BookOpen,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   AIConfig,
@@ -58,14 +61,21 @@ interface Message {
 }
 
 interface AIAssistantDrawerProps {
+  projectId: string;
+  cursorLine: number;
+  diagnostics: string;
+  diagnosticsStale: boolean;
+  verifyCandidate: (target: AIEditTarget, code: string) => Promise<{ ok: boolean; message: string }>;
+  applySavedEdit: (file: string, search: string, replace: string) => void;
   isOpen: boolean;
   docked?: boolean;
   onClose: () => void;
   selectedText: string;
   activeFile: string;
-  onInsertCode: (code: string) => void;
   getEditTarget: (finalizePending?: boolean) => AIEditTarget | null;
   onRequestDiff: (target: AIEditTarget, suggestedText: string) => void;
+  projectFiles: Record<string,string>;
+  onJumpToSource: (file: string, line: number) => void;
 }
 
 export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
@@ -73,17 +83,24 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
   docked = false,
   onClose,
   selectedText,
+  projectFiles,
+  onJumpToSource,
   activeFile,
-  onInsertCode,
   onRequestDiff,
   getEditTarget,
+  projectId,
+  cursorLine,
+  diagnostics,
+  diagnosticsStale,
+  verifyCandidate,
+  applySavedEdit,
 }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       sender: 'assistant',
       content:
-        '👋 Welcome! I am your local LaTeX & Academic Research Assistant. Select any snippet or equation in the editor and ask me to debug, reformat, or expand it.',
+        'Ask about LaTeX, brainstorm ideas or attach a reference image. Use Edit source for focused changes. Choose what to share in settings.',
       isAcademic: true,
       timestamp: new Date().toLocaleTimeString(),
     },
@@ -94,18 +111,47 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
   const [imagePreparing, setImagePreparing] = useState(false);
   const [imageError, setImageError] = useState('');
   const imageInput = useRef<HTMLInputElement>(null);
+  const composerInput = useRef<HTMLTextAreaElement>(null);
   const imageEpoch = useRef(0);
   const [editSource, setEditSource] = useState(false);
+  const [includeDiagnostics, setIncludeDiagnostics] = useState(false);
+  const [verification, setVerification] = useState('');
+  const [savedProposal, setSavedProposal] = useState<{ target: AIEditTarget; code: string } | null>(null);
+  async function saveProposal() {
+    if (!savedProposal) return;
+    try {
+      const minimal = minimalAIEdit(savedProposal.target, savedProposal.code), search = minimal.target.document.slice(minimal.target.from, minimal.target.to);
+      if (!search || search.length > 12000 || minimal.code.length > 12000) throw new Error('Save a smaller focused change. Insertion-only proposals stay in the inline editor.');
+      const url = '/api/projects/' + projectId + '/reviews'; const state = await (await fetch(url)).json();
+      const line = minimal.target.document.slice(0,minimal.target.from).split('\n').length;
+      const quote = minimal.target.document.split('\n')[line - 1].slice(0,1000);
+      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add', revision: state.revision, note: { file: minimal.target.file, line, quote, message: 'Source change proposed by Lemmata Assist. Recheck against current source before applying.', origin: 'ai', edit: { search, replace: minimal.code } } }) });
+      const result = await response.json(); if (!response.ok) throw new Error(result.error);
+      setVerification('Proposal saved in Paper review → Persistent notes.'); setSavedProposal(null);
+    } catch (problem) { setVerification((problem as Error).message); }
+  }
   const [sourceSharing, setSourceSharing] = useState<SourceSharing>('none');
   const [includeHistory, setIncludeHistory] = useState(true);
   const [showSourcePreview, setShowSourcePreview] = useState(false);
-  const [sharingOpen, setSharingOpen] = useState(false);
+
   const conversations = useRef<Record<string, Message[]>>({});
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
   const scopeRef = useRef('');
   const requestEpoch = useRef(0);
   const [showSettings, setShowSettings] = useState(false);
+  useEffect(() => {
+    const input = composerInput.current; if (!input) return;
+    const resize = () => { input.style.height = 'auto'; const height = Math.max(44,Math.min(132,input.scrollHeight)); input.style.height = height + 'px'; input.style.overflowY = input.scrollHeight > 132 ? 'auto' : 'hidden'; };
+    const frame = requestAnimationFrame(resize);
+    let width = input.clientWidth;
+    const observer = new ResizeObserver(entries => { const next = entries[0]?.contentRect.width; if (next !== width) { width = next; resize(); } });
+    observer.observe(input);
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); };
+  }, [prompt, isOpen, showSettings]);
+
+  const [reviewStarted, setReviewStarted] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const conversationEnd = useRef<HTMLDivElement>(null);
   useEffect(() => { if (isOpen) conversationEnd.current?.scrollIntoView({ block: 'nearest' }); }, [messages, loading, isOpen]);
@@ -141,7 +187,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
     scopeRef.current = scope;
     requestEpoch.current++;
     setLoading(false); setPrompt(''); setEditSource(false); setSourceSharing('none'); setShowSourcePreview(false);
-    setMessages(conversations.current[scope] || [{ id: 'welcome', sender: 'assistant', content: 'TeX Sage helps with LaTeX and reference images. Choose what to share below. I cannot inspect your computer or other projects.', isAcademic: true, timestamp: new Date().toLocaleTimeString() }]);
+    setMessages(conversations.current[scope] || [{ id: 'welcome', sender: 'assistant', content: 'Lemmata Assist helps with LaTeX and reference images. Control source sharing in Assistant settings. I cannot inspect your computer or other projects.', isAcademic: true, timestamp: new Date().toLocaleTimeString() }]);
   }, [scope]);
   useEffect(() => { imageEpoch.current++; setImage(null); setImageError(''); setImagePreparing(false); }, [provider, modelName, baseUrl]);
 
@@ -171,10 +217,10 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      profiles.current = JSON.parse(localStorage.getItem('texstudio_ai_profiles') || '{}');
+      profiles.current = JSON.parse(readPreference('lemmata_ai_profiles') || '{}');
       // Remove any plaintext keys saved by an older build; keep them only in this tab.
-      localStorage.setItem('texstudio_ai_profiles', JSON.stringify(Object.fromEntries(Object.entries(profiles.current).map(([name, profile]) => [name, { encryptedKey: profile.encryptedKey || '', baseUrl: profile.baseUrl || '', modelName: profile.modelName || '' }]))));
-      const savedConfig = localStorage.getItem('texstudio_ai_config');
+      localStorage.setItem('lemmata_ai_profiles', JSON.stringify(Object.fromEntries(Object.entries(profiles.current).map(([name, profile]) => [name, { encryptedKey: profile.encryptedKey || '', baseUrl: profile.baseUrl || '', modelName: profile.modelName || '' }]))));
+      const savedConfig = readPreference('lemmata_ai_config');
       if (savedConfig) {
         const parsed = JSON.parse(savedConfig);
         const savedProvider: AIConfig['provider'] = providerOptions.some(option => option.value === parsed.provider) ? parsed.provider : 'gemini';
@@ -184,7 +230,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
         if (!local && parsed.apiKey) {
           setApiKey(parsed.apiKey);
           delete parsed.apiKey;
-          localStorage.setItem('texstudio_ai_config', JSON.stringify(parsed));
+          localStorage.setItem('lemmata_ai_config', JSON.stringify(parsed));
           setSettingsMessage('Your previously stored key is now session-only. Set a master password to save it encrypted.');
         }
         if (parsed.baseUrl) setBaseUrl(parsed.baseUrl);
@@ -234,9 +280,9 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
       if (isLocal) cipher = '';
       else if (apiKey) cipher = masterPass ? await encryptApiKey(apiKey, masterPass) : '';
       else if (cipher && masterPass && !cipher.startsWith('v3:')) cipher = await encryptApiKey(await decryptApiKey(cipher, masterPass), masterPass);
-      localStorage.setItem('texstudio_ai_config', JSON.stringify({ provider, encryptedKey: cipher, baseUrl, modelName }));
+      localStorage.setItem('lemmata_ai_config', JSON.stringify({ provider, encryptedKey: cipher, baseUrl, modelName }));
       profiles.current[provider] = { apiKey: isLocal ? '' : apiKey, encryptedKey: cipher, baseUrl, modelName };
-      localStorage.setItem('texstudio_ai_profiles', JSON.stringify(Object.fromEntries(Object.entries(profiles.current).map(([name, profile]) => [name, { encryptedKey: profile.encryptedKey || '', baseUrl: profile.baseUrl || '', modelName: profile.modelName || '' }]))));
+      localStorage.setItem('lemmata_ai_profiles', JSON.stringify(Object.fromEntries(Object.entries(profiles.current).map(([name, profile]) => [name, { encryptedKey: profile.encryptedKey || '', baseUrl: profile.baseUrl || '', modelName: profile.modelName || '' }]))));
       setEncryptedKey(cipher);
       setSettingsMessage(apiKey && !masterPass ? 'Key kept only in this tab. Add a master password to save it encrypted.' : '');
       setSettingsToast({ id: Date.now(), text: 'Settings saved' });
@@ -274,6 +320,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
       setSettingsMessage('Source is unavailable. Select the source file before requesting an edit.');
       return;
     }
+    if (editSource && includeDiagnostics && (diagnosticsStale || !diagnostics)) { setSettingsMessage('Compile the current source first to obtain current errors, or turn off diagnostic sharing.'); return; }
     const requestSelection = shared;
     const requestFile = target?.file || activeFile;
     const requestImage = image;
@@ -304,23 +351,32 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
         selectedText: sourceSharing === 'selection' ? requestSelection : undefined,
         fullDocument: sourceSharing === 'document' ? requestSelection : undefined,
         activeFile: sourceSharing === 'none' ? undefined : requestFile,
+        mode: editSource ? 'edit' : 'ask',
+        compilerErrors: editSource && includeDiagnostics ? diagnostics : undefined,
       }, history, requestImage ? [requestImage] : []);
       if (epoch !== requestEpoch.current) return;
 
+      const proposal = editSource && target ? parseFocusedEdit(responseText, target) : null;
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
-        content: responseText,
+        content: proposal ? proposal.summary : responseText,
         isAcademic: academic,
         contextSnippet: requestSelection || undefined,
-        editTarget: target || undefined,
+        editTarget: editSource ? target || undefined : undefined,
         timestamp: new Date().toLocaleTimeString(),
       };
 
       setMessages(prev => [...prev, assistantMsg]);
-      const blocks = latexBlocks(responseText);
-      if (editSource && target && blocks.length === 1) {
-        onRequestDiff(target, blocks[0]);
+      if (proposal && target && proposal.code !== target.document.slice(target.from, target.to)) {
+        setSavedProposal({ target, code: proposal.code });
+        onRequestDiff(target, proposal.code);
+        if (includeDiagnostics) {
+          setVerification('Testing the candidate with your selected engine…');
+          try { const result = await verifyCandidate(target, proposal.code); if (epoch === requestEpoch.current) setVerification(result.message); }
+          catch (problem) { if (epoch === requestEpoch.current) setVerification((problem as Error).message); }
+          if (epoch === requestEpoch.current) setIncludeDiagnostics(false);
+        }
         if (!docked) onClose();
       }
     } catch (err) {
@@ -348,33 +404,33 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <section id="tex-sage-panel" className="sage-panel" aria-label="TeX Sage assistant" onPaste={pasteImage} onKeyDown={event => {
+    <section id="lemmata-assist-panel" className="assist-panel" aria-label="Lemmata Assist" onPaste={pasteImage} onKeyDown={event => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       if ((event.target as HTMLElement).closest('.custom-select')?.querySelector('[aria-expanded="true"]')) return;
+      if (showSettings) { event.preventDefault(); setShowSettings(false); return; }
       event.preventDefault(); onClose();
     }}>
-      {settingsToast && <div className="sage-settings-toast" role="status"><Check size={14} />{settingsToast.text}</div>}
+      {settingsToast && <div className="assist-settings-toast" role="status"><Check size={14} />{settingsToast.text}</div>}
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+      <div className="assistant-header flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-indigo-500 flex items-center justify-center shadow-lg">
-            <Sparkles size={16} className="text-white" />
+            <Mascot size={36} />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold text-white">TeX Sage</span>
-              <span className="badge-emerald text-[10px] uppercase font-bold">
-                {provider}
-              </span>
-            </div>
-            <span className="text-[10px] text-slate-400">{docked ? 'Alongside your source & PDF' : 'Your writing & LaTeX assistant'}</span>
+          <div className="assistant-brand-copy">
+            <span className="text-sm font-bold text-white">Lemmata Assist</span>
+            <div className="assistant-provider-line"><span className="badge-emerald">{provider}</span><span>Writing & LaTeX</span></div>
           </div>
         </div>
 
         <div className="flex items-center gap-1">
+          {showSettings ? <button type="button" className="btn-secondary assistant-back-button" onClick={() => setShowSettings(false)}><ArrowLeft size={14}/>Back to chat</button> : <>
+          <button type="button" className="btn-icon" title="Paper review" aria-label="Open paper review" onClick={()=>{setReviewStarted(true);setReviewOpen(true);}}><BookOpen size={16}/></button>
           <button type="button" className="btn-icon" title="Clear this provider's conversation" aria-label="Clear conversation" onClick={() => { requestEpoch.current++; imageEpoch.current++; setMessages(messages.filter(message => message.id === 'welcome')); setImage(null); setPrompt(''); setLoading(false); setImagePreparing(false); }}><Trash2 size={15} /></button>
           <button
             onClick={() => setShowSettings(!showSettings)}
+            aria-label="Assistant settings"
+            aria-expanded={showSettings}
             className="btn-icon"
             title="Configure AI Providers & Keys"
           >
@@ -383,22 +439,26 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
           <button onClick={onClose} className="btn-icon hover:text-rose-400" title="Close Drawer">
             <X size={18} />
           </button>
+          </>}
         </div>
       </div>
 
       {/* Settings Modal / Overlay inside drawer */}
       {showSettings ? (
-        <div className="sage-settings flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs">
+        <div className="assist-settings flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs">
           <div className="flex items-center justify-between pb-2 border-b border-white/10">
-            <span className="font-bold text-sm text-white">AI Provider Settings</span>
-            <button
-              onClick={() => setShowSettings(false)}
-              className="text-slate-400 hover:text-white"
-            >
-              Cancel
-            </button>
+            <span className="font-bold text-sm text-white">Assistant settings</span>
+
           </div>
 
+          <div id="assist-sharing-options" className="assist-context-controls">
+            <Dropdown label="Source context" value={sourceSharing} options={[{ value: 'none', label: 'No source', detail: 'Only your message and enabled recent chat' }, { value: 'selection', label: 'Selection', detail: 'Selected text or the last valid edit range' }, { value: 'document', label: 'Active document', detail: 'Share the active file; never other project files' }]} onChange={value => { setSourceSharing(value as SourceSharing); if (value === 'none') setEditSource(false); setShowSourcePreview(false); setSettingsMessage(''); }} />
+            <Checkbox checked={includeHistory} onChange={setIncludeHistory}>Include recent chat</Checkbox>
+            <small>Recent replies may contain previously shared source. Images are not resent.</small>
+            {sourceSharing !== 'none' && <button type="button" className="assist-source-preview-toggle" onClick={() => setShowSourcePreview(value => !value)} aria-expanded={showSourcePreview}>{showSourcePreview ? 'Hide' : 'Preview'} source to share</button>}
+            {showSourcePreview && <pre className="assist-source-preview">{sharedSource(sourceSharing, selectedText, requestTarget()) || 'No source selected.'}</pre>}
+          </div>
+          {(diagnostics || includeDiagnostics) && <details className="repair-controls"><summary>Compiler repair pipeline</summary><p>Approve the displayed errors and source, then send an Edit request. The proposed candidate is test-compiled without replacing your PDF.</p><pre>{diagnostics || 'No current compiler errors.'}</pre><Checkbox checked={includeDiagnostics} onChange={setIncludeDiagnostics}>Include these compiler errors</Checkbox><button className="btn-secondary" disabled={!diagnostics || diagnosticsStale || loading} onClick={() => { setEditSource(true); setSourceSharing('document');  setIncludeDiagnostics(true); setShowSettings(false); setPrompt('Fix the approved compiler errors with focused changes only. Preserve unrelated source.'); }}>Prepare focused repair</button>{diagnosticsStale && <p>Source changed. Recompile before using these errors.</p>}</details>}
           <Dropdown label="Provider" value={provider} options={providerOptions} onChange={changeProvider} />
 
           {(provider === 'gemini' || provider === 'openai') && (
@@ -482,7 +542,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
                     wordBreak: 'break-word',
                   }}
                 >
-                  {msg.image && <img className="sage-message-image" src={`data:image/png;base64,${msg.image.data}`} alt="Attached reference" />}
+                  {msg.image && <img className="assist-message-image" src={`data:image/png;base64,${msg.image.data}`} alt="Attached reference" />}
                   {msg.sender === 'assistant' ? <ChatMarkdown content={msg.content} /> : <div className="whitespace-pre-wrap">{msg.content}</div>}
 
                   {/* Actions for assistant messages containing code */}
@@ -496,16 +556,7 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
                         <span>{copiedId === msg.id ? 'Copied' : 'Copy'}</span>
                       </button>
 
-                      {latexBlocks(msg.content).map((code, blockIndex, blocks) => (
-                        <React.Fragment key={blockIndex}>
-                          <button onClick={() => onInsertCode(code)} className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold">
-                            <Code2 size={12} /><span>Insert{blocks.length > 1 ? ` block ${blockIndex + 1}` : ' at Cursor'}</span>
-                          </button>
-                          {msg.editTarget && <button onClick={() => { onRequestDiff(msg.editTarget!, code); if (!docked) onClose(); }} className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold">
-                            <ArrowRight size={12} /><span>{blocks.length > 1 ? `Preview block ${blockIndex + 1}` : 'Preview in editor'}</span>
-                          </button>}
-                        </React.Fragment>
-                      ))}
+
                     </div>
                   )}
                 </div>
@@ -540,30 +591,22 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
           )}
 
           {/* Input Area */}
-          <button type="button" className="sage-sharing-disclosure" aria-expanded={sharingOpen} aria-controls="sage-sharing-options" onClick={() => setSharingOpen(value => !value)}>
-            <SlidersHorizontal size={13} /><span>Sharing</span><small>{sourceSharing === 'none' ? 'No source' : sourceSharing === 'selection' ? 'Selection' : 'Active document'} · Chat {includeHistory ? 'on' : 'off'}</small><ChevronDown size={14} className={sharingOpen ? 'is-open' : ''} />
-          </button>
-          {sharingOpen && <div id="sage-sharing-options" className="sage-context-controls">
-            <Dropdown label="Source context" value={sourceSharing} options={[{ value: 'none', label: 'No source', detail: 'Only your message and enabled recent chat' }, { value: 'selection', label: 'Selection', detail: 'Selected text or the last valid edit range' }, { value: 'document', label: 'Active document', detail: 'Share the active file; never other project files' }]} onChange={value => { setSourceSharing(value as SourceSharing); if (value === 'none') setEditSource(false); setShowSourcePreview(false); setSettingsMessage(''); }} />
-            <Checkbox checked={includeHistory} onChange={setIncludeHistory}>Include recent chat</Checkbox>
-            <small>Recent replies may contain previously shared source. Images are not resent.</small>
-            {sourceSharing !== 'none' && <button type="button" className="sage-source-preview-toggle" onClick={() => setShowSourcePreview(value => !value)} aria-expanded={showSourcePreview}>{showSourcePreview ? 'Hide' : 'Preview'} source to share</button>}
-            {showSourcePreview && <pre className="sage-source-preview">{sharedSource(sourceSharing, selectedText, requestTarget()) || 'No source selected.'}</pre>}
-          </div>}
-          <div className="sage-edit-mode" role="group" aria-label="Assistant mode">
+          <div className="assist-edit-mode" role="group" aria-label="Assistant mode">
             <button type="button" aria-pressed={!editSource} onClick={() => setEditSource(false)}>Ask</button>
-            <button type="button" aria-pressed={editSource} disabled={sourceSharing === 'none'} title={sourceSharing === 'none' ? 'Choose source context before editing' : 'Preview changes inline'} onClick={() => setEditSource(true)}>Edit source</button>
-            <span>{editSource ? 'Compile accepts pending changes' : 'Chat without changing the editor'}</span>
+            <button type="button" aria-pressed={editSource} title="Propose focused source changes inline" onClick={() => { setEditSource(true); if (sourceSharing === 'none') { setSourceSharing(selectedText ? 'selection' : 'document');  } }}>Edit source</button>
+            <button type="button" className="assist-more" aria-label="Configure sharing and compiler repair" title={`${sourceSharing === 'none' ? 'No source' : sourceSharing === 'selection' ? 'Selection' : 'Active document'} · Recent chat ${includeHistory ? 'on' : 'off'} · ${isLocal ? 'Local model' : provider}`} onClick={() => setShowSettings(true)}>More<ChevronDown size={14} style={{transform: 'rotate(-90deg)'}} /></button>
           </div>
+          {verification && <p className="repair-verification" role="status">{verification}</p>}
+          {savedProposal && <button className="btn-secondary save-proposal" onClick={saveProposal}>Save proposed change for later review</button>}
           {settingsMessage && <p className="px-3 text-xs text-amber-300" role="status">{settingsMessage}</p>}
-          {image && <div className="sage-image-preview"><img src={`data:image/png;base64,${image.data}`} alt="Reference ready to send" /><span>Reference image<small>{image.width} × {image.height} · metadata removed</small></span><button type="button" className="btn-icon" aria-label="Remove reference image" onClick={() => setImage(null)}><Trash2 size={15} /></button></div>}
-          {imageError && <p className="sage-image-error" role="alert">{imageError}</p>}
-          <p className="sage-sharing-note">{isLocal ? 'Sent to your local model server' : `Sent to ${provider === 'gemini' ? 'Google Gemini' : 'OpenAI'}`}{image ? ' · image included once' : ''}</p>
-          <div className="p-3 border-t border-white/10 flex items-center gap-2">
+          {image && <div className="assist-image-preview"><img src={`data:image/png;base64,${image.data}`} alt="Reference ready to send" /><span>Reference image<small>{image.width} × {image.height} · metadata removed</small></span><button type="button" className="btn-icon" aria-label="Remove reference image" onClick={() => setImage(null)}><Trash2 size={15} /></button></div>}
+          {imageError && <p className="assist-image-error" role="alert">{imageError}</p>}
+          <div className="assist-composer p-3 border-t border-white/10 flex items-center gap-2">
             <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void attachImage(file); }} />
-            <button type="button" className="btn-icon sage-attach-image" aria-label="Attach reference image" title={imageHint} disabled={!imageAllowed || loading || imagePreparing} onClick={() => imageInput.current?.click()}><ImagePlus size={18} /></button>
+            <button type="button" className="btn-icon assist-attach-image" aria-label="Attach reference image" title={imageHint} disabled={!imageAllowed || loading || imagePreparing} onClick={() => imageInput.current?.click()}><ImagePlus size={18} /></button>
             <textarea
-              aria-label="Message TeX Sage"
+              ref={composerInput}
+              aria-label="Message Lemmata Assist"
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               onKeyDown={e => {
@@ -573,11 +616,13 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
                 }
               }}
               placeholder={
-                selectedText
-                  ? 'Ask AI about your selected code snippet...'
-                  : 'Ask TeX Sage… or paste a reference image'
+                editSource
+                  ? 'Describe a focused change…'
+                  : selectedText
+                  ? 'Ask about this selection…'
+                  : 'Ask Lemmata Assist…'
               }
-              rows={2}
+              rows={1}
               className="input-dark flex-1 resize-none text-xs"
             />
             <button
@@ -585,13 +630,14 @@ export const AIAssistantDrawer: React.FC<AIAssistantDrawerProps> = ({
               disabled={!prompt.trim() || loading || imagePreparing || Boolean(image && !imageAllowed)}
               aria-label="Send message"
               className="btn-primary"
-              style={{ height: 48, width: 44, padding: 0, justifyContent: 'center' }}
+
             >
               <Send size={16} />
             </button>
           </div>
         </>
       )}
+      {reviewStarted && <PaperReviewPanel open={reviewOpen} onClose={()=>setReviewOpen(false)} files={projectFiles} activeFile={activeFile} currentProvider={provider} currentModel={modelName} currentBaseUrl={baseUrl} getConfig={()=>resolveAIConfig(provider,{apiKey,encryptedKey,masterPass,baseUrl,modelName},decryptApiKey)} onJump={onJumpToSource} projectId={projectId} cursorLine={cursorLine} applySavedEdit={applySavedEdit}/>}
     </section>
   );
 };

@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-export const SESSION_COOKIE = 'texstudio_session';
+export const SESSION_COOKIE = 'lemmata_session';
 export const MAX_REQUEST_BYTES = 24 * 1024 * 1024;
 export function checkLocalBoundary(headers: Headers, expectedPort: string): string | null {
   const host = headers.get('host') || '';

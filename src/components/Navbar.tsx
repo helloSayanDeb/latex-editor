@@ -1,5 +1,6 @@
 'use client';
 
+import { Mascot } from './Mascot';
 import React, { useEffect, useState } from 'react';
 import {
   Play,
@@ -19,6 +20,8 @@ import {
   RefreshCw,
   Cpu,
   Trash2,
+  Search,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { useOutsideDismiss } from './Dropdown';
@@ -32,10 +35,15 @@ interface NavbarProps {
   onDeleteProject: (project: ProjectMetadata) => void;
   engine: 'pdflatex' | 'xelatex' | 'lualatex';
   onChangeEngine: (engine: 'pdflatex' | 'xelatex' | 'lualatex') => void;
+  onOpenLemmataSetup: () => void;
+  onOpenBuildSettings: () => void;
+  onOpenCommands: () => void;
   onCompile: () => void;
   isCompiling: boolean;
   onOpenTemplates: () => void;
+  onOpenJournal: () => void;
   onOpenTableGen: () => void;
+  onOpenVisualEditor: (kind: 'equation' | 'table' | 'figure') => void;
   onOpenSymbols: () => void;
   onOpenWordCount: () => void;
   onExportZip: () => void;
@@ -53,10 +61,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   onDeleteProject,
   engine,
   onChangeEngine,
+  onOpenLemmataSetup,
+  onOpenBuildSettings,
+  onOpenCommands,
   onCompile,
   isCompiling,
   onOpenTemplates,
+  onOpenJournal,
   onOpenTableGen,
+  onOpenVisualEditor,
   onOpenSymbols,
   onOpenWordCount,
   onExportZip,
@@ -65,6 +78,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   aiOpen,
   onResetDefault,
 }) => {
+  const [searchHint, setSearchHint] = useState(0);
+  useEffect(() => { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; const timer = setInterval(() => setSearchHint(value => (value + 1) % 3), 2800); return () => clearInterval(timer); }, []);
   const [projectDropdown, setProjectDropdown] = useState(false);
   const [engineDropdown, setEngineDropdown] = useState(false);
   const projectMenu = useOutsideDismiss<HTMLDivElement>(projectDropdown, () => setProjectDropdown(false));
@@ -75,10 +90,10 @@ export const Navbar: React.FC<NavbarProps> = ({
     let active = true;
     fetch('/api/system').then(res => res.json()).then(data => { if (active && data.ok) setEngineVersions(data.engineVersions); }).catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [engineDropdown]);
 
   return (
-    <header className="glass-panel w-full flex items-center justify-between px-3 py-2 z-30 select-none border-b border-white/10">
+    <header className="workspace-topbar glass-panel w-full flex items-center justify-between px-3 py-2 z-30 select-none border-b border-white/10">
       {/* Left: Logo & Project selector */}
       <div className="flex items-center gap-3">
         <Logo size="md" />
@@ -101,8 +116,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {projectDropdown && (
             <div
-              className="absolute top-full left-0 mt-1 w-56 rounded-xl glass-card p-1 shadow-2xl z-50 flex flex-col gap-0.5 text-xs"
-              style={{ background: 'rgba(15, 18, 28, 0.98)' }}
+              className="project-menu absolute top-full left-0 mt-1 w-56 rounded-xl glass-card p-1 shadow-2xl z-50 flex flex-col gap-0.5 text-xs"
+              style={{ background: 'var(--bg-elevated)' }}
             >
               <div className="px-2.5 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                 Projects
@@ -149,31 +164,31 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           )}
         </div>
+        <button className="btn-icon project-build-control" onClick={onOpenBuildSettings} aria-label="Project & build settings" title="Build recipe, auto-compile and project name"><SlidersHorizontal size={15}/></button>
       </div>
 
+      <button className="topbar-command" onClick={onOpenCommands} aria-label="Search commands and files"><Search size={14}/><span className="search-mode-hint" key={searchHint}>{['Commands', 'Files', 'Project search'][searchHint]}</span><kbd>⌘ / Ctrl ⇧ P</kbd></button>
       {/* Center: Compile button & Engine selector */}
-      <div className="flex items-center gap-2">
+      <div className="compile-engine-group">
         <button
           onClick={onCompile}
-          disabled={isCompiling}
           className="btn-primary text-xs px-3.5 py-1.5 shadow-lg"
-          title="Compile Document (Ctrl + Enter)"
+          aria-label={isCompiling ? 'Cancel compilation' : 'Compile document'}
+          title={isCompiling ? 'Cancel compilation' : 'Compile document'}
         >
           {isCompiling ? (
             <>
               <RefreshCw size={13} className="animate-spin text-white" />
-              <span>Compiling...</span>
+
             </>
           ) : (
             <>
               <Play size={13} fill="currentColor" />
-              <span>Compile</span>
-              <kbd className="hidden md:inline ml-1 text-[10px] bg-black/25 px-1 py-0.5 rounded border border-white/20 font-mono">
-                Ctrl+Enter
-              </kbd>
+
             </>
           )}
         </button>
+
 
         {/* Engine dropdown */}
         <div className="relative hidden sm:block" ref={engineMenu}>
@@ -192,7 +207,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {engineDropdown && (
             <div
               className="absolute top-full left-0 mt-1 rounded-xl glass-card p-1 shadow-2xl z-50 flex flex-col gap-0.5 text-xs"
-              style={{ background: 'rgba(15, 18, 28, 0.98)', width: 230 }}
+              style={{ background: 'var(--bg-elevated)', width: 230 }}
             >
               {(['pdflatex', 'xelatex', 'lualatex'] as const).map(eng => (
                 <button
@@ -210,13 +225,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }`}
                 >
                   <span>{eng}</span>
-                  <span style={{ fontSize: 10, color: engineVersions?.[eng] ? '#8adeb5' : '#94a3b8' }}>{engineVersions ? (engineVersions[eng] ? 'Installed' : 'Unavailable') : 'Checking…'}</span>
+                  <span style={{ fontSize: 10, color: engineVersions?.[eng] ? 'var(--accent-text)' : 'var(--text-muted)' }}>{engineVersions ? (engineVersions[eng] ? 'Installed' : 'Unavailable') : 'Checking…'}</span>
                   {eng === engine && <Check size={12} />}
                 </button>
               ))}
+              <button className="btn-secondary" onClick={() => { setEngineDropdown(false); onOpenLemmataSetup(); }}>Set up or repair TeX</button>
             </div>
           )}
         </div>
+
       </div>
 
       <div className="navbar-actions flex items-center gap-2">
@@ -224,7 +241,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         <details className="tools-menu" ref={toolsMenu}>
           <summary>Tools <ChevronDown size={12} /></summary>
           <div className="tools-menu-panel" onClick={e => e.currentTarget.closest('details')?.removeAttribute('open')}>
+            <button onClick={onOpenBuildSettings}><SlidersHorizontal size={15}/>Project & build settings</button>
+            <button onClick={onOpenCommands}><Search size={15} />Commands & project search</button>
+            <button onClick={onOpenJournal}><FileText size={15}/>Journal templates & submission check</button>
+            <button onClick={onOpenLemmataSetup}><Cpu size={15} />Lemmata setup & engine checks</button>
             <button onClick={onOpenTableGen}><Table size={15} />Table generator</button>
+            <button onClick={() => onOpenVisualEditor('equation')}><Sigma size={15}/>Visual equation & matrix editor</button>
+            <button onClick={() => onOpenVisualEditor('table')}><Table size={15}/>Edit table at cursor</button>
+            <button onClick={() => onOpenVisualEditor('figure')}><FileText size={15}/>Edit figure at cursor</button>
             <button onClick={onOpenSymbols}><Sigma size={15} />Symbols & circuits</button>
             <button onClick={onOpenWordCount}><BarChart3 size={15} />Word & equation count</button>
             <button onClick={onExportZip}><Download size={15} />Export project ZIP</button>
@@ -237,15 +261,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           onClick={onOpenAI}
           aria-expanded={aiOpen}
-          aria-controls="tex-sage-panel"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all border border-indigo-500/30 hover:border-indigo-500/60"
+          aria-controls="lemmata-assist-panel"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all border assistant-launch-button"
           style={{
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(16, 185, 129, 0.25) 100%)',
-            color: '#a5b4fc',
+            background: aiOpen ? 'var(--accent-dim)' : 'var(--bg-secondary)',
+            color: aiOpen ? 'var(--accent-text)' : 'var(--text-main)',
           }}
         >
-          <Sparkles size={13} className="text-emerald-400" />
-          <span>TeX Sage</span>
+          <Mascot size={24} />
+          <span>Lemmata Assist</span>
         </button>
       </div>
     </header>

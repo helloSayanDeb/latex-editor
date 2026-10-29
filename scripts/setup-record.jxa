@@ -1,0 +1,10 @@
+function run(argv) {
+  ObjC.import('Foundation');
+  var root=argv[0], id=argv[1], target=argv[2], status=argv[3], file=root+'/.lemmata-install.json';
+  var exists=$.NSFileManager.defaultManager.fileExistsAtPath(file);
+  var data=exists?JSON.parse(ObjC.unwrap($.NSString.stringWithContentsOfFileEncodingError(file,4,null))):{schema:1,id:id,root:root,components:[]};
+  if(data.schema!==1||data.root!==root||data.id!==id)throw Error('Installation identity mismatch');
+  data.components=data.components.filter(function(item){return item.id!=='node';});
+  data.components.push({id:'node',kind:'directory',path:target,status:status});
+  if(!$(JSON.stringify(data,null,2)).writeToFileAtomicallyEncodingError(file,true,4,null))throw Error('Could not save installation record');
+}

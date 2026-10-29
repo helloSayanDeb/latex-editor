@@ -40,8 +40,8 @@ $x_{typpo}$ \[equationtyppo\]
   for (const excluded of ['article','badkey','otherkey','commment','typpo','equationtyppo','badcircuitword']) assert(!words.some(w=>w.word===excluded),excluded);
   for(const word of words) assert.equal(doc.slice(word.from,word.to),word.word);
   console.log('PASS: LaTeX exclusions preserve exact editor positions');
-  const response = await fetch('http://localhost:2303/api/spelling',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({document:doc})}); const data = await response.json(); assert(response.ok,JSON.stringify(data)); assert(data.issues.some(w=>w.word==='sentnce'));
-  const suggestion = await fetch('http://localhost:2303/api/spelling',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:'sentnce'})}).then(r=>r.json()); assert(suggestion.suggestions.includes('sentence'));
-  const ignored = await fetch('http://localhost:2303/api/spelling',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({document:doc,ignored:['sentnce']})}).then(r=>r.json()); assert(!ignored.issues.some(w=>w.word==='sentnce'));
+  const response = await fetch((process.env.LEMMATA_TEST_URL || 'http://localhost:2303')+'/api/spelling',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({document:doc})}); const data = await response.json(); assert(response.ok,JSON.stringify(data)); assert(data.issues.some(w=>w.word==='sentnce'));
+  const suggestion = await fetch((process.env.LEMMATA_TEST_URL || 'http://localhost:2303')+'/api/spelling',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:'sentnce'})}).then(r=>r.json()); assert(suggestion.suggestions.includes('sentence'));
+  const ignored = await fetch((process.env.LEMMATA_TEST_URL || 'http://localhost:2303')+'/api/spelling',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({document:doc,ignored:['sentnce']})}).then(r=>r.json()); assert(!ignored.issues.some(w=>w.word==='sentnce'));
   console.log('PASS: real dictionary spelling, corrections and ignore');
 })().catch(error=>{console.error(error);process.exitCode=1});

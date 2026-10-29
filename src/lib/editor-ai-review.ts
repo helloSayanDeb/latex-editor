@@ -12,7 +12,7 @@ class ReviewWidget extends WidgetType {
     const panel = document.createElement('div');
     panel.className = 'cm-ai-review';
     panel.setAttribute('role', 'region');
-    panel.setAttribute('aria-label', 'Proposed TeX Sage edit');
+    panel.setAttribute('aria-label', 'Proposed Lemmata Assist edit');
     const code = document.createElement('pre');
     code.className = 'cm-ai-proposed-code';
     code.textContent = this.review.code || '(Delete selected code)';
@@ -20,7 +20,7 @@ class ReviewWidget extends WidgetType {
     const actions = document.createElement('div');
     actions.className = 'cm-ai-review-actions';
     const label = document.createElement('span');
-    label.textContent = 'TeX Sage · proposed change';
+    label.textContent = 'Lemmata Assist · proposed change';
     actions.appendChild(label);
     for (const [text, action] of [['Accept', this.review.accept], ['Reject', this.review.reject]] as const) {
       const button = document.createElement('button');

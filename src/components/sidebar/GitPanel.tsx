@@ -2,14 +2,18 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GitBranch, GitCommit, Check, RefreshCw, Plus, FileText } from 'lucide-react';
+import { GitRemote } from '../modals/GitRemote';
 
 interface GitPanelProps {
   projectId: string;
   savedVersion: number;
   beforeMutation: () => Promise<void>;
+  onReload: () => Promise<void>;
+  onBusy: (value: boolean) => void;
 }
 
-export const GitPanel: React.FC<GitPanelProps> = ({ projectId, savedVersion, beforeMutation }) => {
+export const GitPanel: React.FC<GitPanelProps> = ({ projectId, savedVersion, beforeMutation, onReload, onBusy }) => {
+  const [remoteOpen,setRemoteOpen] = useState(false);
   const [isRepo, setIsRepo] = useState(false);
   const [branch, setBranch] = useState('main');
   const [changedFiles, setChangedFiles] = useState<{ status: string; name: string }[]>([]);
@@ -34,7 +38,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ projectId, savedVersion, bef
         setIsRepo(true);
         setBranch(data.branch);
         setChangedFiles(data.files || []);
-      } else {
+      } else if (data.isRepo === false) {
         setIsRepo(false);
       }
     } catch {
@@ -99,6 +103,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ projectId, savedVersion, bef
 
   return (
     <div className="flex flex-col gap-2 p-2 select-none border-t border-white/5 text-xs">
+      {remoteOpen && <GitRemote project={projectId} beforeMutation={beforeMutation} onReload={onReload} onBusy={onBusy} onClose={() => { setRemoteOpen(false); void fetchStatus(); }}/>}
       <div className="flex items-center justify-between px-1 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
         <div className="flex items-center gap-1.5">
           <GitBranch size={13} className="text-slate-500" />
@@ -146,6 +151,7 @@ export const GitPanel: React.FC<GitPanelProps> = ({ projectId, savedVersion, bef
             )}
           </div>
 
+          <button className="btn-secondary justify-center" disabled={loading} onClick={() => setRemoteOpen(true)}>Remote sync & conflicts</button>
           {/* Commit Box */}
           {!commitOpen ? <button className="btn-secondary justify-center" disabled={loading || !changedFiles.length} onClick={() => setCommitOpen(true)}>Prepare commit</button> : <div className="flex flex-col gap-1.5 pt-1">
             <input

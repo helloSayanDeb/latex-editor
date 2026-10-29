@@ -1,5 +1,6 @@
 'use client';
 
+import { SnapshotComparison } from './SnapshotComparison';
 import React, { useState, useEffect } from 'react';
 import { History, X, Plus, RotateCcw, Trash2, ShieldCheck, Clock, HardDrive } from 'lucide-react';
 import type { SnapshotItem } from '@/lib/project-store';
@@ -11,7 +12,7 @@ interface SnapshotDrawerProps {
   projectId: string;
   currentFiles: Record<string, string>;
   activeFile: string;
-  onRestoreSnapshot: (files: Record<string, string>, activeFile: string) => Promise<void>;
+  onRestoreSnapshot: (files: Record<string, string>, activeFile: string, expectedFiles?: Record<string,string>) => Promise<void>;
 }
 
 export const SnapshotDrawer: React.FC<SnapshotDrawerProps> = ({
@@ -22,6 +23,7 @@ export const SnapshotDrawer: React.FC<SnapshotDrawerProps> = ({
   activeFile,
   onRestoreSnapshot,
 }) => {
+  const [comparing,setComparing] = useState<SnapshotItem|null>(null);
   const [snapshots, setSnapshots] = useState<SnapshotItem[]>([]);
   const { ask, dialog } = useAppDialog();
   const [autoCount, setAutoCount] = useState(0);
@@ -50,6 +52,7 @@ export const SnapshotDrawer: React.FC<SnapshotDrawerProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      setComparing(null);
       fetchSnapshots();
     }
   }, [isOpen, projectId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -92,7 +95,7 @@ export const SnapshotDrawer: React.FC<SnapshotDrawerProps> = ({
       setLoading(true);
       setRestoreError('');
       try {
-        await onRestoreSnapshot(snap.files, snap.activeFile);
+        await onRestoreSnapshot(snap.files, snap.activeFile, currentFiles);
         onClose();
       } catch (error) { setRestoreError((error as Error).message); }
       finally { setLoading(false); }
@@ -114,12 +117,16 @@ export const SnapshotDrawer: React.FC<SnapshotDrawerProps> = ({
   };
 
   return (
+    <div className="snapshot-backdrop" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
     <div
-      className="fixed top-0 right-0 bottom-0 z-50 flex flex-col shadow-2xl transition-all"
+      tabIndex={-1} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); onClose(); } if (event.key === 'Tab') { const buttons = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),[tabindex="0"]')]; const first = buttons[0], last = buttons[buttons.length-1]; if (event.shiftKey && document.activeElement === first) {event.preventDefault();last?.focus();} else if (!event.shiftKey && document.activeElement === last) {event.preventDefault();first?.focus();} } }}
+      role="dialog" aria-label="Project snapshots" aria-modal="true"
+      className="snapshot-dialog fixed z-50 flex flex-col shadow-2xl"
       style={{
-        width: 420,
+        width: comparing ? 960 : 720,
+        left: '50%', top: '50%', transform: 'translate(-50%, -50%)', height: 'min(760px, 85dvh)', borderRadius: 18, boxShadow: '0 0 0 100vmax #0009',
         maxWidth: '100vw',
-        background: 'rgba(13, 16, 24, 0.98)',
+        background: 'var(--bg-secondary)',
         backdropFilter: 'blur(30px)',
         borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
       }}
@@ -143,11 +150,12 @@ export const SnapshotDrawer: React.FC<SnapshotDrawerProps> = ({
           </div>
         </div>
 
-        <button onClick={onClose} className="btn-icon" aria-label="Close snapshots">
+        <button onClick={onClose} className="btn-icon" aria-label="Close snapshots" autoFocus>
           <X size={18} />
         </button>
       </div>
 
+      {comparing ? <SnapshotComparison snapshot={comparing} current={currentFiles} activeFile={activeFile} onBack={() => setComparing(null)} onRestore={async (files,active,expected) => { await onRestoreSnapshot(files,active,expected); await fetchSnapshots(); }}/> : <>
       {/* Action / Create Bar */}
       <div className="p-3 border-b border-white/5 flex flex-col gap-2">
         {!isCreating ? (
@@ -237,6 +245,7 @@ export const SnapshotDrawer: React.FC<SnapshotDrawerProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1">
+                  <button className="btn-secondary text-[11px]" onClick={() => setComparing(snap)} aria-label={`Compare ${snap.name}`}>Compare</button>
                   <button
                     onClick={() => handleRestore(snap)}
                     className="btn-secondary text-[11px] px-2 py-1 text-emerald-400 hover:text-emerald-300"
@@ -264,6 +273,7 @@ export const SnapshotDrawer: React.FC<SnapshotDrawerProps> = ({
           ))
         )}
       </div>
-    </div>
+      </>}
+    </div></div>
   );
 };

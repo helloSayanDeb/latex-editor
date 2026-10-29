@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Replace, ChevronUp, ChevronDown, X, Check, RefreshCw } from 'lucide-react';
 import type { EditorView } from '@codemirror/view';
+import { setFindHighlights } from '@/lib/editor-search';
 import { findMatches, type SearchMatch } from '@/lib/search';
 import { Checkbox } from '@/components/Checkbox';
 
@@ -31,6 +32,14 @@ export const FindReplacePanel: React.FC<FindReplacePanelProps> = ({
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
 
   const findInputRef = useRef<HTMLInputElement>(null);
+
+  const highlightMatch = (view: EditorView, match: { from: number; to: number }) => {
+    if (!match) return;
+    view.dispatch({
+      selection: { anchor: match.from, head: match.to },
+      scrollIntoView: true,
+    });
+  };
 
   // Focus find input on open
   useEffect(() => {
@@ -74,13 +83,12 @@ export const FindReplacePanel: React.FC<FindReplacePanelProps> = ({
     }
   }, [findText, caseSensitive, useRegex, wholeWord, isOpen, documentText, documentKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const highlightMatch = (view: EditorView, match: { from: number; to: number }) => {
-    if (!match) return;
-    view.dispatch({
-      selection: { anchor: match.from, head: match.to },
-      scrollIntoView: true,
-    });
-  };
+  useEffect(() => {
+    const view = getEditorView();
+    if (!view) return;
+    view.dispatch({effects:setFindHighlights.of({ranges:isOpen?matches:[],active:currentMatchIndex})});
+    return () => { if(getEditorView()===view)view.dispatch({effects:setFindHighlights.of({ranges:[],active:-1})}); };
+  }, [matches, currentMatchIndex, isOpen, documentKey, getEditorView]);
 
   const handleNext = () => {
     if (matches.length === 0) return;
@@ -150,7 +158,7 @@ export const FindReplacePanel: React.FC<FindReplacePanelProps> = ({
     <div
       className="absolute top-2 right-4 z-30 flex flex-col gap-2 p-3 rounded-xl shadow-2xl transition-all select-none"
       style={{
-        background: 'rgba(18, 22, 33, 0.95)',
+        background: 'var(--bg-secondary)',
         backdropFilter: 'blur(20px)',
         border: '1px solid rgba(255, 255, 255, 0.12)',
         width: 390,

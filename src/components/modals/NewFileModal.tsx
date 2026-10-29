@@ -89,8 +89,8 @@ export const NewFileModal: React.FC<NewFileModalProps> = ({
       <div
         className="glass-card flex flex-col w-full max-w-sm overflow-hidden shadow-2xl"
         style={{
-          background: 'rgba(15, 18, 28, 0.98)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-medium)',
         }}
       >
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10">

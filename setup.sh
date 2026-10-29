@@ -1,115 +1,35 @@
 #!/usr/bin/env bash
-# =============================================================================
-# TeXStudio Local — Single-Command Setup & Launch Script (macOS & Linux)
-# =============================================================================
-# Automates:
-#   1. Verifying Node.js & npm runtime
-#   2. Verifying LaTeX distribution (pdflatex, xelatex, lualatex)
-#   3. Installing project dependencies (npm install)
-#   4. Building offline frontend bundles (npm run build)
-#   5. Running the automated compilation test suite
-#   6. Launching the web application & opening default browser
-# =============================================================================
-
-set -e
-
-# Terminal Colors
-CYAN='\033[0;36m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-echo ""
-echo -e "${CYAN}  ╔═════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}  ║             TeXStudio Local — Setup & Launch Suite             ║${NC}"
-echo -e "${CYAN}  ╚═════════════════════════════════════════════════════════════════╝${NC}"
-echo ""
-
-# -----------------------------------------------------------------------------
-# 1. Check Node.js
-# -----------------------------------------------------------------------------
-echo -e "${YELLOW}[1/5] Verifying Node.js Runtime...${NC}"
-if ! command -v node >/dev/null 2>&1; then
-    echo -e "${RED}  ✗ Node.js is not installed.${NC}"
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo -e "    Install with Homebrew: ${YELLOW}brew install node${NC}"
-    elif command -v apt-get >/dev/null 2>&1; then
-        echo -e "    Install on Ubuntu/Debian: ${YELLOW}sudo apt-get install -y nodejs npm${NC}"
-    elif command -v pacman >/dev/null 2>&1; then
-        echo -e "    Install on Arch Linux: ${YELLOW}sudo pacman -S nodejs npm${NC}"
-    else
-        echo -e "    Please install Node.js (v20.9+) from https://nodejs.org/${NC}"
-    fi
-    exit 1
+set -euo pipefail
+cd -- "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+# Reuse this checkout's private runtime without changing the system PATH permanently.
+if [ -f .lemmata-install.json ] && [ "$(uname -s)" = Darwin ]; then
+  id=$(/usr/bin/plutil -extract id raw -o - .lemmata-install.json)
+  [[ "$id" =~ ^[a-f0-9-]{36}$ ]] || exit 1
+  runtime="$HOME/.local/share/Lemmata/toolchains/$id/node/runtime/bin/node"
+  owner="$HOME/.local/share/Lemmata/toolchains/$id/node/.lemmata-owner"
+  if [ -x "$runtime" ] && [ -f "$owner" ] && [ "$(cat "$owner")" = "$id" ]; then export PATH="$(dirname "$runtime"):$PATH"; fi
 fi
-
-NODE_VER=$(node -v)
-echo -e "${GREEN}  ✓ Node.js ${NODE_VER} detected.${NC}"
-
-# -----------------------------------------------------------------------------
-# 2. Check LaTeX Distribution
-# -----------------------------------------------------------------------------
-echo -e "${YELLOW}[2/5] Verifying Local LaTeX Distribution...${NC}"
-
-# Add TeX Live macOS & Linux standard bin paths to PATH if present
-export PATH="/Library/TeX/texbin:/usr/local/texlive/2026/bin/x86_64-linux:/usr/local/texlive/2025/bin/x86_64-linux:/usr/local/texlive/2024/bin/x86_64-linux:$PATH"
-
-if ! command -v pdflatex >/dev/null 2>&1; then
-    echo -e "${RED}  ✗ No LaTeX compiler (pdflatex) found in PATH.${NC}"
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo -e "    Install on macOS: ${YELLOW}brew install --cask mactex-no-gui${NC}"
-    elif command -v apt-get >/dev/null 2>&1; then
-        echo -e "    Install on Ubuntu/Debian: ${YELLOW}sudo apt-get install -y texlive-latex-extra texlive-science${NC}"
-    elif command -v pacman >/dev/null 2>&1; then
-        echo -e "    Install on Arch Linux: ${YELLOW}sudo pacman -S texlive-most${NC}"
-    elif command -v dnf >/dev/null 2>&1; then
-        echo -e "    Install on Fedora: ${YELLOW}sudo dnf install -y texlive-scheme-medium${NC}"
-    else
-        echo -e "    Please install TeX Live from: https://tug.org/texlive/${NC}"
-    fi
-    exit 1
+if ! command -v node >/dev/null 2>&1 || ! node -e 'process.exit(Number(process.versions.node.split(".")[0])>=22?0:1)'; then
+  [ "$(uname -s)" = Darwin ] || { echo 'Install Node.js 22+ and retry.' >&2; exit 1; }
+  printf 'Download a private Node.js runtime for Lemmata (system tools unchanged)? [y/N] '
+  read -r answer
+  case "$answer" in y|Y|yes|YES) ;; *) exit 1 ;; esac
+  if [ -f .lemmata-install.json ]; then id=$(/usr/bin/plutil -extract id raw -o - .lemmata-install.json); else id=$(uuidgen | tr '[:upper:]' '[:lower:]'); fi
+  [[ "$id" =~ ^[a-f0-9-]{36}$ ]] || exit 1
+  target="$HOME/.local/share/Lemmata/toolchains/$id/node"
+  [ ! -e "$target" ] || exit 1
+  mkdir -p "$target";printf '%s' "$id" > "$target/.lemmata-owner"
+  /usr/bin/osascript -l JavaScript scripts/setup-record.jxa "$PWD" "$id" "$target" installing
+  curl --fail --location --proto '=https' https://nodejs.org/dist/latest-v24.x/SHASUMS256.txt -o "$target/sums"
+  asset=$(awk '$2 ~ /^node-v24[.].*-darwin-arm64[.]tar[.]gz$/ {print $2;exit}' "$target/sums")
+  case "$asset" in node-v24.*-darwin-arm64.tar.gz) ;; *) echo 'Official archive unavailable';exit 1 ;; esac
+  curl --fail --location --proto '=https' "https://nodejs.org/dist/latest-v24.x/$asset" -o "$target/node.tar.gz"
+  expected=$(awk -v file="$asset" '$2==file {print $1}' "$target/sums")
+  actual=$(shasum -a 256 "$target/node.tar.gz" | awk '{print $1}')
+  [ "$actual" = "$expected" ] || { echo 'Node checksum mismatch';exit 1; }
+  mkdir "$target/runtime";tar -xzf "$target/node.tar.gz" -C "$target/runtime" --strip-components=1
+  export PATH="$target/runtime/bin:$PATH"
+  /usr/bin/osascript -l JavaScript scripts/setup-record.jxa "$PWD" "$id" "$target" installed
+  rm -f -- "$target/node.tar.gz" "$target/sums"
 fi
-
-PDFLATEX_PATH=$(command -v pdflatex)
-echo -e "${GREEN}  ✓ Found LaTeX compiler: ${PDFLATEX_PATH}${NC}"
-
-# -----------------------------------------------------------------------------
-# 3. Install NPM Dependencies
-# -----------------------------------------------------------------------------
-echo -e "${YELLOW}[3/5] Installing Dependencies (npm install)...${NC}"
-npm install --no-audit --no-fund
-echo -e "${GREEN}  ✓ Dependencies installed.${NC}"
-
-# -----------------------------------------------------------------------------
-# 4. Build Next.js Production Bundle
-# -----------------------------------------------------------------------------
-echo -e "${YELLOW}[4/5] Building Next.js Production Application...${NC}"
-npm run build
-echo -e "${GREEN}  ✓ Next.js application built.${NC}"
-
-# -----------------------------------------------------------------------------
-# 5. Run Verification Smoke Test Suite
-# -----------------------------------------------------------------------------
-echo -e "${YELLOW}[5/5] Executing Automated Test Suite...${NC}"
-node scripts/smoke-test.js
-
-# -----------------------------------------------------------------------------
-# Launch Application
-# -----------------------------------------------------------------------------
-echo ""
-echo -e "${GREEN}  ═════════════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}  🎉 SETUP COMPLETE! Launching TeXStudio Local...${NC}"
-echo -e "${CYAN}  → Web Interface: http://localhost:2303${NC}"
-echo -e "${YELLOW}  Press Ctrl+C in this terminal window to stop the server.${NC}"
-echo -e "${GREEN}  ═════════════════════════════════════════════════════════════════${NC}"
-echo ""
-
-# Open default browser
-if command -v open >/dev/null 2>&1; then
-    open "http://localhost:2303" &
-elif command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "http://localhost:2303" &
-fi
-
-exec npm start
+exec node scripts/setup-wizard.cjs "$@"

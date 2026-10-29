@@ -3,7 +3,7 @@ import path from 'path';
 
 export interface AuditEntry {
   timestamp: string;
-  action: 'compile' | 'export' | 'create_project' | 'delete_project' | 'file_change' | 'snapshot';
+  action: 'compile' | 'package_install' | 'export' | 'create_project' | 'delete_project' | 'file_change' | 'snapshot';
   project: string;
   engine?: string;
   durationMs?: number;

@@ -1,4 +1,5 @@
 'use client';
+import { readPreference } from '@/lib/preferences';
 import React, { useEffect, useRef, useState } from 'react';
 import { SpellCheck, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { EditorView } from '@codemirror/view';
@@ -22,7 +23,7 @@ export function SpellChecker({ isEnabled, onToggle, documentText, documentKey, g
   const getter = useRef(getEditorView);
   useEffect(() => { getter.current = getEditorView; });
   useEffect(() => {
-    try { setIgnored(JSON.parse(localStorage.getItem('texstudio-spelling-ignored') || '[]')); } catch { /* Empty dictionary if storage is unavailable. */ }
+    try { setIgnored(JSON.parse(readPreference('lemmata-spelling-ignored') || '[]')); } catch { /* Empty dictionary if storage is unavailable. */ }
   }, []);
   useEffect(() => {
     const controller = new AbortController();
@@ -76,7 +77,7 @@ export function SpellChecker({ isEnabled, onToggle, documentText, documentKey, g
   const ignore = () => {
     if (!issue) return;
     const next = [...ignored, issue.word.toLowerCase()]; setIgnored(next);
-    try { localStorage.setItem('texstudio-spelling-ignored', JSON.stringify(next)); } catch { /* Session-only when storage is unavailable. */ }
+    try { localStorage.setItem('lemmata-spelling-ignored', JSON.stringify(next)); } catch { /* Session-only when storage is unavailable. */ }
   };
   return <div className="spelling-control">
     <button className="btn-icon" aria-label={`Spell Checker: ${isEnabled ? 'ON' : 'OFF'}`} title="English spell checking" aria-expanded={open && isEnabled} onClick={() => { if (!isEnabled) { onToggle(true); setOpen(true); } else setOpen(value => !value); }}><SpellCheck size={16} /></button>

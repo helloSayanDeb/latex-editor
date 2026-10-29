@@ -3,15 +3,18 @@
 import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState, StateField, StateEffect, Annotation, Prec, Compartment } from '@codemirror/state';
+import { findHighlights } from '@/lib/editor-search';
 import { spellingField } from '@/lib/editor-spelling';
 import { formatLatex } from '@/lib/latex-format';
 import { aiReviewField, aiReviewKeys, protectAIReview, setAIReview, type InlineReview } from '@/lib/editor-ai-review';
 import { keymap, Decoration, DecorationSet } from '@codemirror/view';
 import { indentWithTab, isolateHistory } from '@codemirror/commands';
-import { StreamLanguage } from '@codemirror/language';
+import { tags } from '@lezer/highlight';
+import { HighlightStyle, syntaxHighlighting, StreamLanguage } from '@codemirror/language';
 import { stex } from '@codemirror/legacy-modes/mode/stex';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { autocompletion, completeFromList, snippet } from '@codemirror/autocomplete';
+import { autocompletion, completeFromList, snippet, type CompletionContext } from '@codemirror/autocomplete';
+import { buildProjectIndex, referenceContext, type ProjectIndex } from '@/lib/project-index';
 
 const externalUpdate = Annotation.define<boolean>();
 
@@ -97,6 +100,7 @@ export interface CodeEditorHandle {
 }
 
 interface CodeEditorProps {
+  wordWrap?: boolean;
   readOnly?: boolean;
   initialValue?: string;
   onChange?: (value: string) => void;
@@ -106,12 +110,15 @@ interface CodeEditorProps {
   onFindShortcut?: () => void;
   onFormatShortcut?: () => void;
   className?: string;
+  projectFiles?: Record<string, string>;
+  onReady?: () => void;
 }
 
 export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
   (
     {
       initialValue = '',
+      wordWrap = true,
       readOnly = false,
       onChange,
       onCursorChange,
@@ -120,12 +127,22 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
       onFindShortcut,
       onFormatShortcut,
       className = '',
+      projectFiles = {},
+      onReady,
     },
     ref
   ) => {
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
     const readOnlyConfig = useRef(new Compartment());
+    const wrapConfig = useRef(new Compartment());
+    useEffect(() => {
+      viewRef.current?.dispatch({ effects: wrapConfig.current.reconfigure(wordWrap ? EditorView.lineWrapping : []) });
+    }, [wordWrap]);
+    const index = useRef<ProjectIndex>({ citations: [], labels: [] });
+    useEffect(() => { index.current = buildProjectIndex(projectFiles); }, [projectFiles]);
+    const readyCallback = useRef(onReady);
+    useEffect(() => { readyCallback.current = onReady; }, [onReady]);
     useEffect(() => {
       viewRef.current?.dispatch({ effects: readOnlyConfig.current.reconfigure(EditorState.readOnly.of(readOnly)) });
     }, [readOnly]);
@@ -303,10 +320,22 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
         doc: initialValue,
         extensions: [
           basicSetup,
+          wrapConfig.current.of(wordWrap ? EditorView.lineWrapping : []),
           StreamLanguage.define(stex),
           oneDark,
+          syntaxHighlighting(HighlightStyle.define([{tag:[tags.keyword,tags.tagName,tags.attributeName,tags.number,tags.string,tags.operator,tags.function(tags.variableName)],color:'var(--accent-text)'}])),
           autocompletion({
-            override: [completeFromList(latexCompletions)],
+            override: [(context: CompletionContext) => {
+              const prefix = context.state.sliceDoc(Math.max(0, context.pos - 1500), context.pos);
+              const reference = referenceContext(prefix);
+              if (!reference) return completeFromList(latexCompletions)(context);
+              const used = prefix.match(/\{([^{}]*)$/)?.[1].split(',').slice(0, -1).map(key => key.trim()) || [];
+              const entries = index.current[reference.kind].filter(entry => !used.includes(entry.key));
+              const unique = new Map(entries.map(entry => [entry.key, entry]));
+              return { from: context.pos - reference.fragment.length, validFor: /^[^{}\s,]*$/, options: [...unique.values()].map(entry => ({
+                label: entry.key, type: 'constant', detail: entry.detail.slice(0, 90), info: `${entry.detail}\n${entry.file}:${entry.line}`,
+              })) };
+            }],
           }),
           Prec.highest(aiReviewKeys),
           Prec.highest(customKeymaps),
@@ -316,6 +345,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
           diffField,
           flashField,
           spellingField,
+          findHighlights,
           readOnlyConfig.current.of(EditorState.readOnly.of(readOnly)),
         ],
       });
@@ -326,6 +356,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
       });
 
       viewRef.current = view;
+      readyCallback.current?.();
 
       return () => {
         view.destroy();

@@ -59,7 +59,7 @@ async function until(check) { for (let i = 0; i < 100; i++) { if (check()) retur
     getBoundingClientRect() { return { top: 0, left: 0, width: parseFloat(this.style.width) || 600, height: parseFloat(this.style.height) || 800 }; }
   }
   let observer, renders = 0, active = 0, maxActive = 0;
-  global.IntersectionObserver = class { constructor(fn) { this.fn = fn; observer = this; } observe() {} disconnect() {} };
+  global.IntersectionObserver = function Observer(fn) { const instance = { fn, observe() {}, disconnect() {} }; observer = instance; return instance; };
   global.document = { createElement: tag => new Element(tag), createDocumentFragment: () => new Element('fragment') };
   global.window = { devicePixelRatio: 2 };
   const doc = { numPages: 17, getPage: async number => ({

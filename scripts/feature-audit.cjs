@@ -1,13 +1,13 @@
 require('./local-test-session.cjs');
-/* eslint-disable @typescript-eslint/no-require-imports */
+
 // Repeatable audit: only creates/mutates its own disposable project.
 const fs = require('node:fs');
 const path = require('node:path');
 const Module = require('node:module');
 const assert = require('node:assert/strict');
 const ts = require('typescript');
-const pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
-const base = process.env.AUDIT_URL || 'http://127.0.0.1:2303';
+let pdfjs;
+const base = process.env.LEMMATA_TEST_URL || process.env.AUDIT_URL || 'http://127.0.0.1:2303';
 const results = [];
 function load(file) {
   const filename = path.resolve(file);
@@ -34,6 +34,7 @@ async function inspectPdf(response) {
   await doc.destroy(); return {bytes,pages,text};
 }
 (async()=>{
+  pdfjs=await import('pdfjs-dist/legacy/build/pdf.mjs');
   const welcome=load('src/lib/welcome-document.ts');
   const {generateTemplate}=load('src/lib/templates.ts');
   let id;
@@ -45,7 +46,7 @@ async function inspectPdf(response) {
     await check('Project create/read',async()=>{assert.equal((await json('/api/projects/'+id)).data.project.files['notes.tex'],'temporary');return id;});
     await check('Save/delete/reload',async()=>{assert.equal((await json('/api/projects/'+id,{files:{'main.tex':simple},mainFile:'main.tex'},'PUT')).data.ok,true);assert.equal((await json('/api/projects/'+id)).data.project.files['notes.tex'],undefined);});
     await check('Word and formula counts',async()=>{const d=(await json('/api/wordcount',{text:'\\documentclass{article}\n\\begin{document}Hello audit world. $x=1$ \\[y=2\\]\\end{document}'})).data;assert.equal(d.words,3);assert.equal(d.mathFormulas,2);return JSON.stringify(d);});
-    for(const engine of ['pdflatex','xelatex','lualatex']) await check('Welcome: one A4 page / '+engine,async()=>{const p=await inspectPdf(await compile({'main.tex':welcome.WELCOME_LATEX_CONTENT},engine));assert.equal(p.pages,1);assert.match(p.text,/Tools within reach/);assert.match(p.text,/Make room/);if(engine==='pdflatex')fs.writeFileSync('docs/welcome-verified.pdf',p.bytes);return p.pages+' page; all footer content present';});
+    for(const engine of ['pdflatex','xelatex','lualatex']) await check('Welcome: one A4 page / '+engine,async()=>{const p=await inspectPdf(await compile({'main.tex':welcome.WELCOME_LATEX_CONTENT},engine));assert.equal(p.pages,1);assert.match(p.text,/Lemmata/);assert.match(p.text,/Make it yours/);if(engine==='pdflatex')fs.writeFileSync('tmp/welcome-verified.pdf',p.bytes);return p.pages+' page; base-LaTeX welcome present';});
     const bib='@article{audit,author={Test, Ada},title={Audit Reference},journal={Test Journal},year={2026}}';
     await check('BibTeX resolves citation',async()=>{const p=await inspectPdf(await compile({'main.tex':'\\documentclass{article}\n\\begin{document}Citation \\cite{audit}.\\bibliographystyle{plain}\\bibliography{refs}\\end{document}','refs.bib':bib}));assert.match(p.text,/Audit Reference/i);assert.doesNotMatch(p.text,/\[\?\]/);});
     await check('Biber resolves citation',async()=>{const p=await inspectPdf(await compile({'main.tex':'\\documentclass{article}\n\\usepackage[backend=biber]{biblatex}\n\\addbibresource{refs.bib}\n\\begin{document}Citation \\cite{audit}.\\printbibliography\\end{document}','refs.bib':bib}));assert.match(p.text,/Audit Reference/i);});
@@ -64,7 +65,7 @@ async function inspectPdf(response) {
     await check('API key encryption and wrong-password rejection',async()=>{global.window={crypto:global.crypto};const api=load('src/lib/ai-providers.ts');const cipher=await api.encryptApiKey('dummy-audit-key','test-password');assert.notEqual(cipher,'dummy-audit-key');assert.equal(await api.decryptApiKey(cipher,'test-password'),'dummy-audit-key');await assert.rejects(api.decryptApiKey(cipher,'wrong'));delete global.window;});
   } finally {
     if(id){const r=await fetch(base+'/api/projects/'+id,{method:'DELETE'});console.log('Temporary project cleanup:',r.status);}
-    fs.writeFileSync('docs/feature-audit-results.json',JSON.stringify({testedAt:new Date().toISOString(),results},null,2));
+    fs.writeFileSync('tmp/feature-audit-results.json',JSON.stringify({testedAt:new Date().toISOString(),results},null,2));
   }
   console.log(`${results.filter(x=>x.status==='PASS').length}/${results.length} audit checks passed`);
   if(results.some(x=>x.status==='FAIL'))process.exitCode=1;

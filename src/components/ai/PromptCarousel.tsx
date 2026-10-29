@@ -16,11 +16,11 @@ export function PromptCarousel({ onSelect }: { onSelect: (prompt: string) => voi
     return () => { element.removeEventListener('scroll', update); observer.disconnect(); };
   }, []);
   const move = (direction: number) => track.current?.scrollBy({ left: direction * Math.max(140, track.current.clientWidth * .75), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  return <div className="sage-prompt-carousel" aria-label="Quick prompts">
-    <button className="sage-prompt-arrow" type="button" aria-label="Previous quick prompts" disabled={!canMove.left} onClick={() => move(-1)}><ChevronLeft size={14} /></button>
-    <div ref={track} className="sage-prompt-track">
-      {['Fix LaTeX Error', 'Format as Equation', 'CircuiTikZ Circuit', 'Improve Tone'].map(prompt => <button key={prompt} type="button" className="sage-prompt-chip" onClick={() => onSelect(prompt)}>{prompt}</button>)}
+  return <div className="assist-prompt-carousel" aria-label="Quick prompts">
+    <button className="assist-prompt-arrow" type="button" aria-label="Previous quick prompts" disabled={!canMove.left} onClick={() => move(-1)}><ChevronLeft size={14} /></button>
+    <div ref={track} className="assist-prompt-track">
+      {['Fix LaTeX Error', 'Format as Equation', 'CircuiTikZ Circuit', 'Improve Tone'].map(prompt => <button key={prompt} type="button" className="assist-prompt-chip" onClick={() => onSelect(prompt)}>{prompt}</button>)}
     </div>
-    <button className="sage-prompt-arrow" type="button" aria-label="Next quick prompts" disabled={!canMove.right} onClick={() => move(1)}><ChevronRight size={14} /></button>
+    <button className="assist-prompt-arrow" type="button" aria-label="Next quick prompts" disabled={!canMove.right} onClick={() => move(1)}><ChevronRight size={14} /></button>
   </div>;
 }

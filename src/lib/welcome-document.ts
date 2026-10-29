@@ -1,5 +1,38 @@
 /** Shared by project creation and Reset; keep this welcome sheet to one A4 page. */
+// First-run document deliberately uses only the LaTeX base installation.
 export const WELCOME_LATEX_CONTENT = String.raw`\documentclass[10pt,a4paper]{article}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\begin{document}
+\begin{center}
+{\Huge\bfseries Lemmata}\\[8pt]
+{\large A space for better papers.}
+\end{center}
+\bigskip\hrule\bigskip
+\section*{Your workspace is ready}
+Write your source, choose an installed engine, and press Ctrl + Enter to compile.
+Use Tools -- Lemmata setup to verify an engine, refresh detection after installing
+TeX, or choose a custom installation directory. On macOS, use Command instead
+of Ctrl for editor shortcuts.
+\section*{A little mathematics}
+\[
+  f(x)=\sum_{i=1}^{n} a_i x^i.
+\]
+\section*{Useful shortcuts}
+\begin{tabular}{ll}
+Ctrl + Enter & Compile document\\
+Ctrl + B & Toggle sidebar\\
+Ctrl + F & Find text\\
+Ctrl + Shift + F & Format source
+\end{tabular}
+\section*{Make it yours}
+Create a project or choose a template. Lemmata Assist can help with source you choose
+to share. Advanced diagrams, custom fonts and templates may require extra
+packages from your TeX distribution.
+\end{document}
+`;
+
+export const SHOWCASE_LATEX_CONTENT = String.raw`\documentclass[10pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{amsmath,amssymb,booktabs,circuitikz,xcolor}
@@ -22,7 +55,7 @@ export const WELCOME_LATEX_CONTENT = String.raw`\documentclass[10pt,a4paper]{art
 \end{tikzpicture}
 \end{minipage}\hfill
 \begin{minipage}[c]{0.85\textwidth}
-{\Huge\bfseries\color{sage} TeXStudio Local}\\[5pt]
+{\Huge\bfseries\color{sage} Lemmata}\\[5pt]
 {\large A space for better papers.}\\[3pt]
 {\small\color{muted} Write locally. Typeset beautifully. Keep your work yours.}
 \end{minipage}
@@ -50,7 +83,7 @@ Ctrl + Click PDF & Jump to source\\\bottomrule
 \small
 \textbf{01\quad Multi-engine typesetting}\\
 pdfLaTeX, XeLaTeX, LuaLaTeX and bibliography passes.\\[3pt]
-\textbf{02\quad TeX Sage}\\
+\textbf{02\quad Lemmata Assist}\\
 Ask your configured AI provider for writing or LaTeX help.\\[3pt]
 \textbf{03\quad Tables and symbols}\\
 Build a table or insert mathematical notation.\\[3pt]
@@ -83,8 +116,8 @@ Clean notation, ready for your next idea:
 \end{document}
 `;
 
-export const WELCOME_BIB_CONTENT = String.raw`@article{texstudio2026,
-  author = {TeXStudio Contributors},
+export const WELCOME_BIB_CONTENT = String.raw`@article{lemmata2026,
+  author = {Lemmata Contributors},
   title = {A Sample Bibliography Entry},
   journal = {Example Journal},
   year = {2026}

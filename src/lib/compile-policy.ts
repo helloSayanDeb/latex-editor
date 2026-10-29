@@ -7,13 +7,22 @@ export function validateCompileFiles(files: Record<string, string>) {
     const size = Buffer.byteLength(content);
     bytes += size;
     if (size > 8 * 1024 * 1024 || bytes > 20 * 1024 * 1024) throw new Error('Compile input exceeds the 8 MB per-file or 20 MB project limit.');
-    if (!/\.(?:tex|sty|cls|bst|bib)$/i.test(name)) continue;
+  }
+  // Custom journal classes can execute these resources too. Follow literal
+  // input/include dependencies even when the author uses a text-file suffix.
+  const sources = new Set(Object.keys(files).filter(name => /\.(?:tex|sty|cls|bst|bib|bbx|cbx|lbx|def|cfg|fd)$/i.test(name)));
+  for (const name of sources) {
+    const content=files[name];
     if (content.startsWith('data:')) throw new Error('TeX source files must contain plain source text, not encoded attachments.');
     const code = content.replace(/(?<!\\)%[^\r\n]*/g, '');
     // Defense in depth for imported/generated source. This is intentionally not a TeX sandbox.
     if (/\^\^|\\(?:directlua|latelua|luafunction|luaexec|openin|openout|read|readline|write|csname|catcode|pdfobj|pdffiledump|pdfextension|special)(?![A-Za-z])/.test(code)) throw new Error('Restricted TeX primitive in ' + name + '. Direct Lua, file IO, shell/dynamic primitives and raw PDF specials are not supported. Use ordinary LaTeX packages and project-relative input files.');
-    for (const match of code.matchAll(/\\(?:input|include|includegraphics|addbibresource|bibliography|lstinputlisting|verbatiminput)\s*(?:\[[^\]]*\]\s*)?(?:\{([^}]*)\}|([^\s{}]+))/g)) {
+    for (const match of code.matchAll(/\\(?:input|include|includegraphics|addbibresource|bibliography|lstinputlisting|verbatiminput)(?![A-Za-z])\s*(?:\[[^\]]*\]\s*)?(?:\{([^}]*)\}|([^\s{}]+))/g)) {
       for (const value of (match[1] || match[2]).split(',')) sanitizePath(value.trim());
+    }
+    for (const match of code.matchAll(/\\(?:input|include)(?![A-Za-z])\s*(?:\{([^}]*)\}|([^\s{}]+))/g)) {
+      const target=sanitizePath((match[1]||match[2]).trim()), directory=name.includes('/')?name.slice(0,name.lastIndexOf('/')+1):'';
+      for (const candidate of [target,target+'.tex',directory+target,directory+target+'.tex']) if (Object.hasOwn(files,candidate)) sources.add(candidate);
     }
   }
 }

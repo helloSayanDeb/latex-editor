@@ -23,6 +23,8 @@ interface StatusBarProps {
   errorMessage?: string;
   onOpenLog?: () => void;
   snapshotCount?: number;
+  problemCount?: number;
+  onOpenProblems?: () => void;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -38,11 +40,14 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   errorMessage,
   onOpenLog,
   snapshotCount = 0,
+  problemCount = 0,
+  onOpenProblems,
 }) => {
   return (
     <footer className="glass-panel w-full flex items-center justify-between px-3 py-1 text-[11px] text-slate-400 select-none border-t border-white/5 z-20">
       {/* Left side: File and Cursor */}
       <div className="flex items-center gap-3">
+        <button onClick={onOpenProblems} aria-label={`Problems: ${problemCount}`} className="status-problems"><AlertCircle size={13} />{problemCount} {problemCount === 1 ? 'problem' : 'problems'}</button>
         <div className="flex items-center gap-1.5 text-slate-300">
           <FileCode size={13} className="text-emerald-400" />
           <span className="font-medium">{activeFile}</span>
@@ -97,9 +102,9 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
         <div className="h-3 w-px bg-white/10" />
 
-        <div className="flex items-center gap-1 text-slate-400 hidden md:flex" title="Offline Sandboxed TeX Engine">
+        <div className="flex items-center gap-1 text-slate-400 hidden md:flex" title="Local compilation with restricted commands; not an OS sandbox">
           <ShieldCheck size={12} className="text-emerald-400" />
-          <span>Local Offline Sandbox</span>
+          <span>Local compilation</span>
         </div>
       </div>
     </footer>
