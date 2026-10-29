@@ -51,9 +51,7 @@ Local API identifiers and preferences use Lemmata. Recognized browser preference
 
 
 | Write | Typeset | Get help |
-
 | --- | --- | --- |
-
 | Syntax highlighting, completion, formatting and local spelling | Native pdfLaTeX, XeLaTeX and LuaLaTeX with SyncTeX navigation | Text or reference images, explicit source sharing and inline AI edit review |
 
 
@@ -273,23 +271,14 @@ LM Studio text and image transcription have been tested live with a loaded `goog
 
 
 | Shortcut | Action |
-
 | --- | --- |
-
 | Ctrl/Cmd + Enter | Compile, accepting any pending AI edit |
-
 | Ctrl/Cmd + B | Toggle file sidebar |
-
 | Ctrl/Cmd + F / H | Find / replace |
-
 | Ctrl/Cmd + Shift + F | Format active LaTeX source |
-
 | Ctrl + Space | Command completion |
-
 | Ctrl/Cmd + click PDF | Jump to source |
-
 | Escape in editor | Reject pending AI edit |
-
 | Ctrl/Cmd + Z | Undo accepted edit or formatting |
 
 
