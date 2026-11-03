@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 export const SESSION_COOKIE = 'lemmata_session';
 export const MAX_REQUEST_BYTES = 24 * 1024 * 1024;
-export function checkLocalBoundary(headers: Headers, expectedPort: string): string | null {
+export function checkLocalBoundary(headers: Headers, expectedPort: string, context?: { method?: string; pathname?: string }): string | null {
   const host = headers.get('host') || '';
   let origin: string;
   try {
@@ -12,11 +12,24 @@ export function checkLocalBoundary(headers: Headers, expectedPort: string): stri
   const requestOrigin = headers.get('origin');
   if (requestOrigin && requestOrigin !== origin) return 'Requests from another website are not allowed.';
   const site = headers.get('sec-fetch-site');
-  if (site && !['same-origin', 'none'].includes(site)) return 'Cross-site requests are not allowed.';
+  const mode = headers.get('sec-fetch-mode');
+  const dest = headers.get('sec-fetch-dest');
+
+  // Top-level browser link navigation (e.g. user clicking from the hosted showcase to their local instance in a new tab)
+  const isTopLevelDocNav = context?.method === 'GET' &&
+    context.pathname &&
+    !context.pathname.startsWith('/api/') &&
+    mode === 'navigate' &&
+    dest === 'document';
+
+  if (site && !['same-origin', 'none'].includes(site)) {
+    if (!isTopLevelDocNav) return 'Cross-site requests are not allowed.';
+  }
   const referer = headers.get('referer');
   if (referer) {
-    try { if (new URL(referer).origin !== origin) return 'Cross-origin requests are not allowed.'; }
-    catch { return 'Invalid request origin.'; }
+    try {
+      if (new URL(referer).origin !== origin && !isTopLevelDocNav) return 'Cross-origin requests are not allowed.';
+    } catch { return 'Invalid request origin.'; }
   }
   if (headers.get('x-forwarded-host') && headers.get('x-forwarded-host') !== host) return 'Forwarded host does not match the local workstation.';
   return null;

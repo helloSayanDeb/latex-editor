@@ -3,17 +3,24 @@ import { checkLocalBoundary, validSession, SESSION_COOKIE, MAX_REQUEST_BYTES } f
 export function proxy(request: NextRequest) {
   // Allow landing page showcase and its assets when deployed publicly (e.g. Vercel)
   if (request.nextUrl.pathname === '/') {
-    const response = NextResponse.next();
-    const csp = ["default-src 'self'", `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}`, "style-src 'self' 'unsafe-inline'", "font-src 'self' data:", "connect-src 'self' http://localhost:* http://127.0.0.1:* https://generativelanguage.googleapis.com https://api.openai.com", "img-src 'self' data: blob:", "worker-src 'self' blob:", "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'", "object-src 'none'"].join('; ');
-    response.headers.set('Content-Security-Policy', csp);
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    response.headers.set('X-Frame-Options', 'DENY');
-    response.headers.set('Referrer-Policy', 'no-referrer');
-    response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    return response;
+    const isVercelOrRemote = process.env.VERCEL || !['localhost', '127.0.0.1', '[::1]'].includes((request.headers.get('host') || '').split(':')[0]);
+    if (isVercelOrRemote) {
+      const response = NextResponse.next();
+      const csp = ["default-src 'self'", `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}`, "style-src 'self' 'unsafe-inline'", "font-src 'self' data:", "connect-src 'self' http://localhost:* http://127.0.0.1:* https://generativelanguage.googleapis.com https://api.openai.com", "img-src 'self' data: blob:", "worker-src 'self' blob:", "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'", "object-src 'none'"].join('; ');
+      response.headers.set('Content-Security-Policy', csp);
+      response.headers.set('X-Content-Type-Options', 'nosniff');
+      response.headers.set('X-Frame-Options', 'DENY');
+      response.headers.set('Referrer-Policy', 'no-referrer');
+      response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+      return response;
+    }
   }
+
   const port = process.env.LEMMATA_PORT || process.env.PORT || '2303';
-  const boundary = checkLocalBoundary(request.headers, port);
+  const boundary = checkLocalBoundary(request.headers, port, {
+    method: request.method,
+    pathname: request.nextUrl.pathname,
+  });
   if (boundary) return NextResponse.json({ error: boundary }, { status: 403 });
   const token = process.env.LEMMATA_SESSION_TOKEN;
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return NextResponse.json({ error: 'Start Lemmata using npm run dev or npm start.' }, { status: 503 });
