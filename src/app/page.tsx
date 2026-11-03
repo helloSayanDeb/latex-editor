@@ -145,6 +145,8 @@ export default function LandingPage() {
             <a 
               href="http://localhost:2303/lemmata" 
               className="landing-open is-online"
+              target="_blank"
+              rel="noreferrer noopener"
               title="Launch local Lemmata on port 2303"
             >
               <span className="live-indicator-dot" />
@@ -196,7 +198,12 @@ export default function LandingPage() {
                 Enter Lemmata<ArrowRight size={17}/>
               </Link>
             ) : localAppRunning ? (
-              <a href="http://localhost:2303/lemmata" className="landing-primary is-online">
+              <a 
+                href="http://localhost:2303/lemmata" 
+                className="landing-primary is-online"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
                 <span>Enter Local Workspace</span>
                 <ArrowRight size={17}/>
               </a>
@@ -353,7 +360,12 @@ export default function LandingPage() {
             Open the workspace<ArrowRight size={17}/>
           </Link>
         ) : localAppRunning ? (
-          <a href="http://localhost:2303/lemmata" className="landing-primary is-online">
+          <a 
+            href="http://localhost:2303/lemmata" 
+            className="landing-primary is-online"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
             <span>Open Local Workspace (2303)</span>
             <ArrowRight size={17}/>
           </a>

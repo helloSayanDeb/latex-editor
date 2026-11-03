@@ -174,6 +174,8 @@ export function SetupModal({ isOpen, onClose, isLocalServerActive = false }: Set
                   <a 
                     href="http://localhost:2303/lemmata" 
                     className="setup-launch-btn"
+                    target="_blank"
+                    rel="noreferrer noopener"
                   >
                     <span>Open Local Lemmata</span>
                     <ArrowRight size={14} />
